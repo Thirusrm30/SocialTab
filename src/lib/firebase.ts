@@ -159,7 +159,7 @@ class MockFirestore {
       get: async () => {
         const item = items.find((i: any) => i.id === id);
         return {
-          exists: !!item,
+          exists: () => !!item,
           data: () => item,
           id,
         };

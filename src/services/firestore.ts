@@ -1,9 +1,14 @@
-import { db, collection, doc, addDoc, getDoc, getDocs, updateDoc, deleteDoc, setDoc, query, where, serverTimestamp } from '@/lib/firebase';
+import { db, collection, doc, addDoc, getDoc, getDocs, updateDoc, deleteDoc, setDoc, serverTimestamp } from '@/lib/firebase';
 import type { Group, GroupMember, JoinRequest, Expense, Settlement, Activity } from '@/types';
 
 // Helper to parse dates
 function parseDate(value: any): Date {
   if (!value) return new Date();
+  // Handle Firestore Timestamp
+  if (value && typeof value.toDate === 'function') return value.toDate();
+  // Handle Date object
+  if (value instanceof Date) return value;
+  // Handle string (ISO or otherwise)
   if (typeof value === 'string') return new Date(value);
   return new Date();
 }
@@ -62,45 +67,151 @@ export async function deleteActivity(activityId: string): Promise<void> {
   await deleteDoc(doc(db, 'activities', activityId));
 }
 
-// User Budget Services
-export async function updateMonthlyBudget(userId: string, amount: number): Promise<void> {
-  const userRef = doc(db, 'users', userId);
-  await setDoc(userRef, { monthlyBudget: amount }, { merge: true });
+// ─── User Profile Services ───────────────────────────────────────────────────
+
+export interface UserProfile {
+  displayName: string;
+  email: string;
+  userId: string;
+  createdAt: string;
 }
 
-export async function getUserBudget(userId: string): Promise<number | null> {
-  const userRef = doc(db, 'users', userId);
-  const userSnap = await getDoc(userRef);
+export interface UserPreferencesData {
+  dateFormat: string;
+  language: string;
+}
 
-  if (userSnap.exists()) {
-    return userSnap.data().monthlyBudget ?? null;
+/** Get user profile from users/{userId} */
+export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+  const userRef = doc(db, 'users', userId);
+  const snap = await getDoc(userRef);
+  if (snap.exists()) {
+    const data = snap.data();
+    return {
+      displayName: data?.displayName || '',
+      email: data?.email || '',
+      userId: data?.userId || userId,
+      createdAt: data?.createdAt || new Date().toISOString(),
+    };
   }
   return null;
 }
 
-export async function getUserMonthlyExpenses(userId: string): Promise<number> {
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+/** Create or update user profile */
+export async function updateUserProfile(userId: string, profile: Partial<UserProfile>): Promise<void> {
+  const userRef = doc(db, 'users', userId);
+  await setDoc(userRef, { ...profile, userId }, { merge: true });
+}
 
-  const q = query(collection(db, 'expenses'), where('splitAmong', 'array-contains', userId));
-  const snapshot = await getDocs(q);
+/** Get user preferences from users/{userId} preferences field */
+export async function getUserPreferences(userId: string): Promise<UserPreferencesData | null> {
+  const userRef = doc(db, 'users', userId);
+  const snap = await getDoc(userRef);
+  if (snap.exists()) {
+    const data = snap.data();
+    if (data?.preferences) {
+      return data.preferences as UserPreferencesData;
+    }
+  }
+  return null;
+}
 
-  let total = 0;
+/** Save user preferences */
+export async function saveUserPreferences(userId: string, preferences: UserPreferencesData): Promise<void> {
+  const userRef = doc(db, 'users', userId);
+  await setDoc(userRef, { preferences }, { merge: true });
+}
 
-  snapshot.docs.forEach((doc: any) => {
-    const data = doc.data();
-    const createdAt = parseDate(data.createdAt);
+/** Get ALL expenses where user is paidBy or splitAmong, with group names for export */
+export async function getAllUserExpenses(userId: string): Promise<{
+  expenses: (Expense & { groupName: string })[];
+}> {
+  // Fetch all expenses
+  const expensesSnapshot = await getDocs(collection(db, 'expenses'));
+  const groupsSnapshot = await getDocs(collection(db, 'groups'));
 
-    if (createdAt >= startOfMonth) {
-      const splitCount = data.splitAmong ? data.splitAmong.length : 1;
-      if (splitCount > 0) {
-        total += data.amount / splitCount;
-      }
+  // Build a groupId -> groupName map
+  const groupMap = new Map<string, string>();
+  groupsSnapshot.docs.forEach((docItem: any) => {
+    const data = docItem.data();
+    groupMap.set(docItem.id, data.name || 'Unknown Group');
+  });
+
+  const expenses: (Expense & { groupName: string })[] = [];
+
+  expensesSnapshot.docs.forEach((docItem: any) => {
+    const data = docItem.data();
+    const isPayer = data.paidBy === userId;
+    const isSplitMember = data.splitAmong && data.splitAmong.includes(userId);
+
+    if (isPayer || isSplitMember) {
+      expenses.push({
+        id: docItem.id,
+        groupId: data.groupId,
+        description: data.description,
+        amount: Number(data.amount),
+        paidBy: data.paidBy,
+        paidByName: data.paidByName,
+        splitAmong: data.splitAmong,
+        category: data.category,
+        createdAt: parseDate(data.createdAt),
+        createdBy: data.createdBy,
+        groupName: groupMap.get(data.groupId) || 'Unknown Group',
+      });
     }
   });
 
+  expenses.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return { expenses };
+}
+
+// ─── Budget Services ─────────────────────────────────────────────────────────
+
+/** Save a monthly budget (number) to users/{userId} */
+export async function setUserBudget(userId: string, amount: number): Promise<void> {
+  const userRef = doc(db, 'users', userId);
+  await setDoc(userRef, { budget: Number(amount) }, { merge: true });
+}
+
+/** Fetch the monthly budget for a user. Returns null if not set. */
+export async function getUserBudget(userId: string): Promise<number | null> {
+  const userRef = doc(db, 'users', userId);
+  const snap = await getDoc(userRef);
+  if (snap.exists()) {
+    const data = snap.data();
+    const budget = data?.budget;
+    return budget !== undefined && budget !== null ? Number(budget) : null;
+  }
+  return null;
+}
+
+/**
+ * Calculate the total amount of expenses for a user across all groups.
+ * Uses reduce() with Number() conversion to be safe against string values.
+ */
+export async function getUserTotalExpenses(userId: string): Promise<number> {
+  const snapshot = await getDocs(collection(db, 'expenses'));
+  const allExpenses: { amount: number; splitAmong: string[] }[] = [];
+
+  snapshot.docs.forEach((d: any) => {
+    const data = d.data();
+    if (data.splitAmong && data.splitAmong.includes(userId)) {
+      allExpenses.push({
+        amount: Number(data.amount),
+        splitAmong: data.splitAmong,
+      });
+    }
+  });
+
+  // Each user's share = amount / number of people splitting
+  const total = allExpenses.reduce((sum, e) => {
+    const splitCount = e.splitAmong.length || 1;
+    return sum + Number(e.amount) / splitCount;
+  }, 0);
+
   return total;
 }
+
 
 // Group Services
 export async function deleteGroup(groupId: string): Promise<void> {
@@ -245,7 +356,7 @@ export async function getGroupById(groupId: string): Promise<Group | null> {
   const docRef = doc(db, 'groups', groupId);
   const docSnap = await getDoc(docRef);
 
-  if (!docSnap.exists) return null;
+  if (!docSnap.exists()) return null;
 
   const data = docSnap.data();
   return {
@@ -313,7 +424,7 @@ export async function sendJoinRequest(
   const groupRef = doc(db, 'groups', groupId);
   const groupSnap = await getDoc(groupRef);
 
-  if (!groupSnap.exists) return;
+  if (!groupSnap.exists()) return;
 
   const data = groupSnap.data();
   const request = {
@@ -341,7 +452,7 @@ export async function approveJoinRequest(
   const groupRef = doc(db, 'groups', groupId);
   const groupSnap = await getDoc(groupRef);
 
-  if (!groupSnap.exists) return;
+  if (!groupSnap.exists()) return;
 
   const data = groupSnap.data();
   const newMember = {
@@ -377,7 +488,7 @@ export async function rejectJoinRequest(
   const groupRef = doc(db, 'groups', groupId);
   const groupSnap = await getDoc(groupRef);
 
-  if (!groupSnap.exists) return;
+  if (!groupSnap.exists()) return;
 
   const data = groupSnap.data();
   const currentRequests = data.joinRequests || [];
@@ -391,7 +502,7 @@ export async function leaveGroup(groupId: string, member: GroupMember): Promise<
   const groupRef = doc(db, 'groups', groupId);
   const groupSnap = await getDoc(groupRef);
 
-  if (!groupSnap.exists) return;
+  if (!groupSnap.exists()) return;
 
   const data = groupSnap.data();
   const currentMembers = data.members || [];

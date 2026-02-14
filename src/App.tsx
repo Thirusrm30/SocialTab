@@ -1,8 +1,11 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { PreferencesProvider } from '@/contexts/PreferencesContext';
 import { Auth } from '@/components/Auth';
 import { Dashboard } from '@/components/Dashboard';
 import { GroupDetails } from '@/components/GroupDetails';
+import { Profile } from '@/components/Profile';
+import { ExportReports } from '@/components/ExportReports';
 import { Toaster } from '@/components/ui/sonner';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -42,6 +45,22 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
+      <Route
+        path="/profile"
+        element={
+          <PrivateRoute>
+            <Profile />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/export"
+        element={
+          <PrivateRoute>
+            <ExportReports />
+          </PrivateRoute>
+        }
+      />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
@@ -50,10 +69,12 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppRoutes />
-        <Toaster position="top-center" />
-      </Router>
+      <PreferencesProvider>
+        <Router>
+          <AppRoutes />
+          <Toaster position="top-center" />
+        </Router>
+      </PreferencesProvider>
     </AuthProvider>
   );
 }

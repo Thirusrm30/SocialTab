@@ -24,6 +24,8 @@ import {
   calculateBalances,
   getSimplifiedDebts,
   deleteGroup,
+  getUserBudget,
+  getUserTotalExpenses,
 } from '@/services/firestore';
 import type { Group, Expense, Settlement, JoinRequest } from '@/types';
 import {
@@ -135,12 +137,34 @@ export function GroupDetails() {
     e.preventDefault();
     if (!groupId || !currentUser || selectedMembers.length === 0) return;
 
+    const amount = parseFloat(expenseAmount);
+    if (isNaN(amount) || amount <= 0) return;
+
     setAddingExpense(true);
     try {
+      // Budget Validation
+      const [budget, currentSpent] = await Promise.all([
+        getUserBudget(currentUser.uid),
+        getUserTotalExpenses(currentUser.uid),
+      ]);
+
+      if (budget !== null) {
+        // Calculate the user's share of the new expense
+        const isUserInSplit = selectedMembers.includes(currentUser.uid);
+        if (isUserInSplit) {
+          const userShare = amount / selectedMembers.length;
+          if (currentSpent + userShare > budget) {
+            alert(`Budget limit exceeded! Your current spending ($${currentSpent.toFixed(2)}) plus your share of this expense ($${userShare.toFixed(2)}) would exceed your monthly budget of $${budget.toFixed(2)}.`);
+            setAddingExpense(false);
+            return;
+          }
+        }
+      }
+
       await addExpense(
         groupId,
         expenseDescription,
-        parseFloat(expenseAmount),
+        amount,
         currentUser.uid,
         currentUser.displayName || 'Anonymous',
         selectedMembers,

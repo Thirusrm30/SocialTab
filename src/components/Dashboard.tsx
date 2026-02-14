@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { getUserGroups, getPublicGroups, createGroup, searchGroups, getRecentActivities, deleteActivity, updateMonthlyBudget, getUserBudget, getUserMonthlyExpenses } from '@/services/firestore';
+import { getUserGroups, getPublicGroups, createGroup, searchGroups, getRecentActivities, deleteActivity, setUserBudget, getUserBudget, getUserTotalExpenses } from '@/services/firestore';
 import type { Group, Activity } from '@/types';
 import {
   Plus,
@@ -29,6 +29,8 @@ import {
   DollarSign,
   Target,
   AlertTriangle,
+  FileText,
+  UserCircle,
 } from 'lucide-react';
 
 export function Dashboard() {
@@ -53,27 +55,35 @@ export function Dashboard() {
 
   // Budget State
   const [budgetDialogOpen, setBudgetDialogOpen] = useState(false);
-  const [budgetAmount, setBudgetAmount] = useState('');
-  const [monthlyBudget, setMonthlyBudget] = useState<number | null>(null);
-  const [monthlySpent, setMonthlySpent] = useState(0);
-  const [budgetAlertShown, setBudgetAlertShown] = useState(false);
+  const [budgetInput, setBudgetInput] = useState('');
+  const [budget, setBudget] = useState<number | null>(null);
+  const [totalSpent, setTotalSpent] = useState(0);
+  const [budgetLoading, setBudgetLoading] = useState(false);
 
-  const budgetLoadedRef = useRef(false);
+  // Derived budget values
+  const remaining = budget !== null ? Math.max(budget - totalSpent, 0) : 0;
+  const percentageUsed = budget !== null && budget > 0 ? (totalSpent / budget) * 100 : 0;
+
+  function getBudgetBarColor(pct: number): string {
+    if (pct > 90) return 'bg-red-500';
+    if (pct >= 70) return 'bg-orange-500';
+    return 'bg-green-500';
+  }
 
   useEffect(() => {
     loadGroups();
   }, [currentUser]);
 
-  // Load budget independently from groups — only once on mount
+  // Load budget whenever currentUser changes
   useEffect(() => {
-    if (currentUser && !budgetLoadedRef.current) {
-      budgetLoadedRef.current = true;
-      loadBudgetInfo();
+    if (currentUser) {
+      loadBudgetData();
     }
   }, [currentUser]);
 
   async function loadGroups() {
     if (!currentUser) return;
+    setLoading(true);
     try {
       const [userGroups, allPublic] = await Promise.all([
         getUserGroups(currentUser.uid),
@@ -92,53 +102,57 @@ export function Dashboard() {
       console.error('Error loading groups:', error);
     } finally {
       setLoading(false);
+      // Recalculate total expenses whenever groups reload/finish loading
+      loadBudgetData();
     }
   }
 
-  async function loadBudgetInfo() {
+  async function loadBudgetData() {
     if (!currentUser) return;
     try {
-      const [budget, spent] = await Promise.all([
+      const [userBudget, userTotal] = await Promise.all([
         getUserBudget(currentUser.uid),
-        getUserMonthlyExpenses(currentUser.uid),
+        getUserTotalExpenses(currentUser.uid),
       ]);
-      setMonthlyBudget(budget);
-      setMonthlySpent(spent);
-
-      // Alert if over budget
-      if (budget && spent >= budget && !budgetAlertShown) {
-        setBudgetAlertShown(true);
-        setTimeout(() => {
-          alert(`⚠️ Budget Alert!\n\nYou have spent $${spent.toFixed(2)} this month, which has reached your monthly budget of $${budget.toFixed(2)}.\n\nConsider reducing your expenses.`);
-        }, 500);
-      }
+      setBudget(userBudget);
+      setTotalSpent(Number(userTotal));
     } catch (error) {
-      console.error('Error loading budget:', error);
+      console.error('Error loading budget data:', error);
     }
   }
 
   async function handleSetBudget(e: React.FormEvent) {
     e.preventDefault();
-    if (!currentUser || !budgetAmount) return;
+    if (!currentUser || !budgetInput) return;
 
+    const amount = Number(budgetInput);
+    if (isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid positive number for the budget.");
+      return;
+    }
+
+    setBudgetLoading(true);
     try {
-      const amount = parseFloat(budgetAmount);
-      if (isNaN(amount) || amount <= 0) return;
-      await updateMonthlyBudget(currentUser.uid, amount);
-      setMonthlyBudget(amount);
+      await setUserBudget(currentUser.uid, amount);
+      setBudget(amount);
       setBudgetDialogOpen(false);
-      setBudgetAmount('');
-      setBudgetAlertShown(false); // Reset alert so it can fire again if needed
-      // Re-check budget
-      loadBudgetInfo();
+      setBudgetInput('');
+      // Refresh spending after setting budget
+      loadBudgetData();
     } catch (error) {
       console.error('Error setting budget:', error);
+    } finally {
+      setBudgetLoading(false);
     }
   }
 
   async function loadActivities(groupIds: string[]) {
-    const activities = await getRecentActivities(groupIds);
-    setRecentActivity(activities);
+    try {
+      const activities = await getRecentActivities(groupIds);
+      setRecentActivity(activities);
+    } catch (error) {
+      console.error('Error loading activities:', error);
+    }
   }
 
   async function handleDeleteActivity(activityId: string) {
@@ -174,13 +188,15 @@ export function Dashboard() {
 
     activities.forEach(activity => {
       const date = activity.createdAt;
-      date.setHours(0, 0, 0, 0);
+      // Note: activity.createdAt is already a Date object from parseDate in firestore.ts
+      const compareDate = new Date(date);
+      compareDate.setHours(0, 0, 0, 0);
 
-      if (date.getTime() === today.getTime()) {
+      if (compareDate.getTime() === today.getTime()) {
         groups['Today'].push(activity);
-      } else if (date.getTime() === yesterday.getTime()) {
+      } else if (compareDate.getTime() === yesterday.getTime()) {
         groups['Yesterday'].push(activity);
-      } else if (date > lastWeek) {
+      } else if (compareDate > lastWeek) {
         groups['Last 7 Days'].push(activity);
       } else {
         groups['Older'].push(activity);
@@ -244,13 +260,13 @@ export function Dashboard() {
   const filteredMyGroups = myGroups.filter(
     (g) =>
       g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      g.description.toLowerCase().includes(searchQuery.toLowerCase())
+      (g.description || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredPublicGroups = publicGroups.filter(
     (g) =>
       g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      g.description.toLowerCase().includes(searchQuery.toLowerCase())
+      (g.description || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
@@ -275,9 +291,17 @@ export function Dashboard() {
               <p className="text-xs text-white/80">{currentUser?.displayName || currentUser?.email}</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleLogout} className="text-white hover:bg-white/20 hover:text-white">
-            <LogOut className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/export')} className="text-white hover:bg-white/20 hover:text-white" title="Export Reports">
+              <FileText className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/profile')} className="text-white hover:bg-white/20 hover:text-white" title="Profile">
+              <UserCircle className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-white hover:bg-white/20 hover:text-white" title="Logout">
+              <LogOut className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -432,107 +456,132 @@ export function Dashboard() {
         </div>
 
         {/* Budget Card */}
-        <Card className="mb-6 bg-white/95 backdrop-blur-sm border-0 shadow-lg">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                  <DollarSign className="w-4 h-4 text-green-600" />
+        <Card className="mb-6 bg-white/95 backdrop-blur-sm border-0 shadow-lg overflow-hidden">
+          <CardContent className="p-0">
+            <div className="p-5 border-b border-gray-100">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center shadow-inner">
+                    <DollarSign className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">Monthly Budget</h3>
+                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">
+                      {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+                <Dialog open={budgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline" className="text-xs font-semibold hover:bg-purple-50 hover:text-purple-600 border-purple-100 transition-colors">
+                      <Target className="w-3.5 h-3.5 mr-1.5" />
+                      {budget ? 'Update' : 'Set Budget'}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl">Monthly Budget</DialogTitle>
+                      <DialogDescription>
+                        Set your spending limit for this month to stay on track with your financial goals.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSetBudget} className="space-y-6 pt-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="budget-input" className="text-sm font-semibold text-gray-700">Budget Amount ($)</Label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Input
+                            id="budget-input"
+                            type="number"
+                            step="0.01"
+                            min="1"
+                            placeholder="500.00"
+                            className="pl-9 h-11"
+                            value={budgetInput}
+                            onChange={(e) => setBudgetInput(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <Button type="submit" disabled={budgetLoading} className="w-full h-11 bg-purple-600 hover:bg-purple-700 font-bold shadow-md transition-all active:scale-95">
+                        {budgetLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                        {budget ? 'Update Budget' : 'Save Budget'}
+                      </Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              {budget !== null ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="px-3 py-2 bg-gray-50 rounded-lg">
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Budget</p>
+                      <p className="text-sm font-bold text-gray-900">${budget.toFixed(2)}</p>
+                    </div>
+                    <div className="px-3 py-2 bg-gray-50 rounded-lg">
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Spent</p>
+                      <p className="text-sm font-bold text-purple-600">${totalSpent.toFixed(2)}</p>
+                    </div>
+                    <div className="px-3 py-2 bg-gray-50 rounded-lg">
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Remaining</p>
+                      <p className={`text-sm font-bold ${remaining < 50 ? 'text-red-600' : 'text-green-600'}`}>${remaining.toFixed(2)}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden shadow-inner flex">
+                      <div
+                        className={`h-full transition-all duration-700 ease-out rounded-full ${getBudgetBarColor(percentageUsed)}`}
+                        style={{ width: `${Math.min(percentageUsed, 100)}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs font-bold text-gray-500">
+                        {percentageUsed.toFixed(0)}% Utilized
+                      </p>
+                      {percentageUsed > 90 && (
+                        <div className="flex items-center gap-1.5 animate-pulse text-red-600">
+                          <AlertTriangle className="w-3.5 h-3.5 font-black" />
+                          <span className="text-[10px] font-black uppercase">Critical Limit Reached!</span>
+                        </div>
+                      )}
+                      {percentageUsed >= 70 && percentageUsed <= 90 && (
+                        <div className="flex items-center gap-1.5 text-orange-500">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          <span className="text-[10px] font-bold uppercase tracking-tighter">Approaching threshold</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-6 flex flex-col items-center justify-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <Target className="w-8 h-8 text-gray-300 mb-2" />
+                  <p className="text-sm text-gray-500 font-medium">No budget configured for this month</p>
+                  <Button variant="link" size="sm" onClick={() => setBudgetDialogOpen(true)} className="text-purple-600 font-bold mt-1 h-auto p-0">
+                    Get started now →
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {budget !== null && percentageUsed > 90 && (
+              <div className="bg-red-50 p-3 flex items-start gap-3 border-t border-red-100">
+                <div className="w-7 h-7 bg-red-100 rounded-full flex-shrink-0 flex items-center justify-center">
+                  <AlertTriangle className="w-4 h-4 text-red-600" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold">Monthly Budget</h3>
-                  <p className="text-xs text-gray-500">
-                    {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+                  <p className="text-xs font-bold text-red-900 mb-0.5">Budget Alert</p>
+                  <p className="text-[11px] text-red-700 leading-tight">
+                    You've consumed over 90% of your budget. Consider reviewing your upcoming expenses.
                   </p>
                 </div>
               </div>
-              <Dialog open={budgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" variant="outline" className="text-xs">
-                    <Target className="w-3 h-3 mr-1" />
-                    {monthlyBudget ? 'Update Budget' : 'Set Budget'}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-sm">
-                  <DialogHeader>
-                    <DialogTitle>Set Monthly Budget</DialogTitle>
-                    <DialogDescription>
-                      Set a spending limit for this month. You'll be alerted when your expenses reach this amount.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleSetBudget}>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="budget">Budget Amount ($)</Label>
-                        <Input
-                          id="budget"
-                          type="number"
-                          step="0.01"
-                          min="1"
-                          placeholder="e.g., 500"
-                          value={budgetAmount}
-                          onChange={(e) => setBudgetAmount(e.target.value)}
-                          required
-                        />
-                      </div>
-                      {monthlyBudget && (
-                        <p className="text-sm text-gray-500">
-                          Current budget: <span className="font-medium">${monthlyBudget.toFixed(2)}</span>
-                        </p>
-                      )}
-                    </div>
-                    <DialogFooter>
-                      <Button type="submit" className="w-full">
-                        Save Budget
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {monthlyBudget ? (
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600">Spent: <span className="font-semibold">${monthlySpent.toFixed(2)}</span></span>
-                  <span className="text-gray-600">Budget: <span className="font-semibold">${monthlyBudget.toFixed(2)}</span></span>
-                </div>
-                <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${(monthlySpent / monthlyBudget) >= 1
-                      ? 'bg-red-500'
-                      : (monthlySpent / monthlyBudget) >= 0.75
-                        ? 'bg-orange-500'
-                        : 'bg-green-500'
-                      }`}
-                    style={{ width: `${Math.min((monthlySpent / monthlyBudget) * 100, 100)}%` }}
-                  />
-                </div>
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-xs text-gray-400">
-                    {((monthlySpent / monthlyBudget) * 100).toFixed(0)}% used
-                  </span>
-                  {monthlySpent >= monthlyBudget && (
-                    <span className="text-xs text-red-500 flex items-center gap-1 font-medium">
-                      <AlertTriangle className="w-3 h-3" />
-                      Budget exceeded!
-                    </span>
-                  )}
-                  {monthlySpent >= monthlyBudget * 0.75 && monthlySpent < monthlyBudget && (
-                    <span className="text-xs text-orange-500 flex items-center gap-1 font-medium">
-                      <AlertTriangle className="w-3 h-3" />
-                      Approaching limit
-                    </span>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400 text-center py-2">
-                No budget set. Tap "Set Budget" to track your monthly spending.
-              </p>
             )}
           </CardContent>
         </Card>
+
 
         {/* Tabs */}
         <Tabs defaultValue="my-groups" className="w-full">
