@@ -64,6 +64,14 @@ export function Dashboard() {
   const remaining = budget !== null ? Math.max(budget - totalSpent, 0) : 0;
   const percentageUsed = budget !== null && budget > 0 ? (totalSpent / budget) * 100 : 0;
 
+  // Predictive Budget Logic
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysPassed = now.getDate();
+  const projectedSpending = totalSpent > 0 ? (totalSpent / daysPassed) * daysInMonth : 0;
+  const isProjectedOverBudget = budget !== null && projectedSpending > budget;
+  const projectedPercentage = budget !== null && budget > 0 ? (projectedSpending / budget) * 100 : 0;
+
   function getBudgetBarColor(pct: number): string {
     if (pct > 90) return 'bg-red-500';
     if (pct >= 70) return 'bg-orange-500';
@@ -280,25 +288,25 @@ export function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500">
       {/* Header */}
-      <header className="bg-white/10 backdrop-blur-md border-b border-white/20 sticky top-0 z-10 shadow-sm">
+      <header className="glass sticky top-0 z-10 border-b-0">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
-              <Wallet className="w-5 h-5 text-purple-600" />
+            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/30">
+              <Wallet className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-lg text-white">SocialTab</h1>
-              <p className="text-xs text-white/80">{currentUser?.displayName || currentUser?.email}</p>
+              <h1 className="font-bold text-lg text-white tracking-tight">SocialTab</h1>
+              <p className="text-xs text-blue-100 font-medium">{currentUser?.displayName || currentUser?.email}</p>
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/export')} className="text-white hover:bg-white/20 hover:text-white" title="Export Reports">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/export')} className="text-white hover:bg-white/20 hover:text-white transition-all hover:scale-105" title="Export Reports">
               <FileText className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/profile')} className="text-white hover:bg-white/20 hover:text-white" title="Profile">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/profile')} className="text-white hover:bg-white/20 hover:text-white transition-all hover:scale-105" title="Profile">
               <UserCircle className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-white hover:bg-white/20 hover:text-white" title="Logout">
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-white hover:bg-white/20 hover:text-white transition-all hover:scale-105" title="Logout">
               <LogOut className="w-5 h-5" />
             </Button>
           </div>
@@ -309,20 +317,20 @@ export function Dashboard() {
       <main className="max-w-4xl mx-auto px-4 py-6">
         {/* Search and Create */}
         <div className="flex gap-3 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+          <div className="relative flex-1 group">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-white/70 group-focus-within:text-white transition-colors" />
             <Input
               placeholder="Search groups..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-white/90 border-0 focus-visible:ring-2 focus-visible:ring-white/50"
+              className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:bg-white/20 transition-all hover:bg-white/15"
             />
           </div>
 
 
           <Dialog open={searchDialogOpen} onOpenChange={setSearchDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-white/90 text-purple-600 hover:bg-white font-semibold shadow-lg transition-all hover:scale-105 active:scale-95">
+              <Button className="bg-white/90 text-purple-600 hover:bg-white font-semibold shadow-lg transition-all hover:scale-105 active:scale-95 border-0">
                 <Search className="w-4 h-4 mr-2" />
                 Find Group
               </Button>
@@ -456,7 +464,7 @@ export function Dashboard() {
         </div>
 
         {/* Budget Card */}
-        <Card className="mb-6 bg-white/95 backdrop-blur-sm border-0 shadow-lg overflow-hidden">
+        <Card className="mb-6 glass-card border-0 overflow-hidden">
           <CardContent className="p-0">
             <div className="p-5 border-b border-gray-100">
               <div className="flex items-center justify-between mb-4">
@@ -529,6 +537,26 @@ export function Dashboard() {
                     </div>
                   </div>
 
+                  {/* Prediction Badge */}
+                  <div className={`p-3 rounded-lg border flex items-center justify-between ${isProjectedOverBudget ? 'bg-orange-50 border-orange-100' : 'bg-blue-50 border-blue-100'}`}>
+                    <div className="flex items-center gap-2">
+                      <ActivityIcon className={`w-4 h-4 ${isProjectedOverBudget ? 'text-orange-500' : 'text-blue-500'}`} />
+                      <div>
+                        <p className={`text-xs font-bold ${isProjectedOverBudget ? 'text-orange-700' : 'text-blue-700'}`}>
+                          {isProjectedOverBudget ? 'Projected Overdraft' : 'On Track'}
+                        </p>
+                        <p className={`text-[10px] ${isProjectedOverBudget ? 'text-orange-600' : 'text-blue-600'}`}>
+                          Est. end of month: <span className="font-bold">${projectedSpending.toFixed(2)}</span>
+                        </p>
+                      </div>
+                    </div>
+                    {isProjectedOverBudget && (
+                      <Badge variant="outline" className="bg-white text-orange-600 border-orange-200 text-[10px]">
+                        {projectedPercentage.toFixed(0)}% of Budget
+                      </Badge>
+                    )}
+                  </div>
+
                   <div className="space-y-2">
                     <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden shadow-inner flex">
                       <div
@@ -585,7 +613,7 @@ export function Dashboard() {
 
         {/* Tabs */}
         <Tabs defaultValue="my-groups" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4 bg-white/20 p-1">
+          <TabsList className="grid w-full grid-cols-3 mb-4 bg-white/10 p-1 rounded-xl backdrop-blur-md border border-white/10">
             <TabsTrigger value="my-groups" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white hover:bg-white/10">My Groups ({filteredMyGroups.length})</TabsTrigger>
             <TabsTrigger value="discover" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white hover:bg-white/10">Discover ({filteredPublicGroups.length})</TabsTrigger>
             <TabsTrigger value="activity" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white hover:bg-white/10">Activity</TabsTrigger>
@@ -606,7 +634,7 @@ export function Dashboard() {
               filteredMyGroups.map((group) => (
                 <Card
                   key={group.id}
-                  className="cursor-pointer hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white/95 backdrop-blur-sm group hover:-translate-y-1"
+                  className="cursor-pointer glass-card border-0 group hover:-translate-y-1"
                   onClick={() => navigate(`/group/${group.id}`)}
                 >
                   <CardContent className="p-4">
@@ -655,7 +683,7 @@ export function Dashboard() {
               filteredPublicGroups.map((group) => (
                 <Card
                   key={group.id}
-                  className="cursor-pointer hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white/95 backdrop-blur-sm group hover:-translate-y-1"
+                  className="cursor-pointer glass-card border-0 group hover:-translate-y-1"
                   onClick={() => navigate(`/group/${group.id}`)}
                 >
                   <CardContent className="p-4">
@@ -705,7 +733,7 @@ export function Dashboard() {
                       {section}
                     </h3>
                     {activities.map((activity) => (
-                      <Card key={activity.id} className="bg-white/95 backdrop-blur-sm border-0 shadow-sm hover:translate-x-1 transition-transform">
+                      <Card key={activity.id} className="glass-card border-0 hover:translate-x-1 transition-transform">
                         <CardContent className="p-3 flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3 overflow-hidden">
                             <div className="flex-shrink-0">

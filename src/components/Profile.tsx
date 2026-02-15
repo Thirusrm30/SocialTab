@@ -174,13 +174,13 @@ export function Profile() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500">
             {/* Header */}
-            <header className="bg-white/10 backdrop-blur-md border-b border-white/20 sticky top-0 z-10 shadow-sm">
+            <header className="glass sticky top-0 z-10 border-b-0">
                 <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => navigate('/')}
-                        className="text-white hover:bg-white/20 hover:text-white"
+                        className="text-white hover:bg-white/20 hover:text-white transition-all hover:-translate-x-1"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
@@ -194,7 +194,7 @@ export function Profile() {
             <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
                 {/* ── Avatar & Name ────────────────────────── */}
                 <div className="flex flex-col items-center gap-3 pt-2 pb-4">
-                    <div className="w-20 h-20 bg-white/20 backdrop-blur-sm border-2 border-white/40 rounded-full flex items-center justify-center shadow-xl">
+                    <div className="w-20 h-20 glass rounded-full flex items-center justify-center shadow-xl ring-2 ring-white/30">
                         <span className="text-3xl font-bold text-white">
                             {displayName?.charAt(0)?.toUpperCase() || 'U'}
                         </span>
@@ -206,7 +206,7 @@ export function Profile() {
                 </div>
 
                 {/* ── Account Info ────────────────────────── */}
-                <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-lg overflow-hidden">
+                <Card className="glass-card border-0 overflow-hidden">
                     <CardContent className="p-0">
                         <div className="px-5 py-3 border-b border-gray-100">
                             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Account Info</h3>
@@ -275,7 +275,7 @@ export function Profile() {
                 </Card>
 
                 {/* ── Preferences ────────────────────────── */}
-                <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-lg overflow-hidden">
+                <Card className="glass-card border-0 overflow-hidden">
                     <CardContent className="p-0">
                         <div className="px-5 py-3 border-b border-gray-100">
                             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Preferences</h3>
@@ -345,7 +345,7 @@ export function Profile() {
                 </Card>
 
                 {/* ── Other ────────────────────────── */}
-                <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-lg overflow-hidden">
+                <Card className="glass-card border-0 overflow-hidden">
                     <CardContent className="p-0">
                         <div className="px-5 py-3 border-b border-gray-100">
                             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Other</h3>

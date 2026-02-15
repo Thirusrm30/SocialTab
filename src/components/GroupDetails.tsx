@@ -54,7 +54,11 @@ import {
   Heart,
   MoreHorizontal,
   AlertTriangle,
+  Mic,
+  MicOff,
+  Image as ImageIcon,
 } from 'lucide-react';
+import { createWorker } from 'tesseract.js';
 import {
   Select,
   SelectContent,
@@ -62,6 +66,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from 'recharts';
 
 const CATEGORIES = [
   { id: 'food', name: 'Food & Dining', icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-100' },
@@ -98,6 +115,158 @@ export function GroupDetails() {
   const [expenseCategory, setExpenseCategory] = useState('other');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [addingExpense, setAddingExpense] = useState(false);
+
+  // Voice & OCR State
+  const [processingReceipt, setProcessingReceipt] = useState(false);
+  const [listening, setListening] = useState(false);
+
+  // Voice Recognition Logic
+  const startListening = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert("Your browser does not support speech recognition. Please try Chrome.");
+      return;
+    }
+
+    // @ts-ignore
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      setListening(true);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      parseVoiceInput(transcript);
+    };
+
+    recognition.start();
+  };
+
+  const parseVoiceInput = (text: string) => {
+    // Simple heuristic: "Title Amount" -> "Dinner 50"
+    const words = text.split(' ');
+    let amountIdx = -1;
+
+    // Find last number
+    for (let i = words.length - 1; i >= 0; i--) {
+      // Remove symbols like $
+      const cleanWord = words[i].replace(/[^0-9.]/g, '');
+      if (cleanWord && !isNaN(parseFloat(cleanWord))) {
+        amountIdx = i;
+        break;
+      }
+    }
+
+    // Category matching heuristic
+    const CATEGORY_KEYWORDS: { [key: string]: string[] } = {
+      food: ['food', 'meal', 'dinner', 'lunch', 'breakfast', 'snack', 'restaurant', 'cafe', 'groceries', 'coffee'],
+      transport: ['taxi', 'uber', 'bus', 'train', 'flight', 'ticket', 'fuel', 'gas', 'car', 'parking'],
+      housing: ['rent', 'utility', 'bill', 'house', 'maintenance'],
+      shopping: ['shopping', 'clothes', 'buy', 'gift', 'mall'],
+      entertainment: ['movie', 'cinema', 'game', 'concert', 'party', 'show'],
+      health: ['doctor', 'medicine', 'hospital', 'gym', 'fitness', 'workout'],
+      education: ['book', 'course', 'tuition', 'school', 'class'],
+      work: ['office', 'software', 'laptop', 'work'],
+      utilities: ['electric', 'water', 'internet', 'wifi', 'phone'],
+    };
+
+    let matchedCategory = 'other';
+    const lowerText = text.toLowerCase();
+
+    // Check if any word matches a category keyword
+    for (const [catId, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+      if (keywords.some(keyword => lowerText.includes(keyword))) {
+        matchedCategory = catId;
+        break;
+      }
+    }
+
+    if (amountIdx !== -1) {
+      const amountStr = words[amountIdx].replace(/[^0-9.]/g, '');
+      const description = words.slice(0, amountIdx).join(' ');
+
+      setExpenseAmount(amountStr);
+      setExpenseDescription(description.charAt(0).toUpperCase() + description.slice(1));
+    } else {
+      // Fallback: just description
+      setExpenseDescription(text.charAt(0).toUpperCase() + text.slice(1));
+    }
+
+    setExpenseCategory(matchedCategory);
+  };
+
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setProcessingReceipt(true);
+    try {
+      const worker = await createWorker('eng');
+      const ret = await worker.recognize(file);
+      const text = ret.data.text;
+      await worker.terminate();
+
+      console.log("OCR Text:", text);
+
+      // Simple heuristic to find total amount
+      // Look for lines with "Total" or largest number
+      const lines = text.split('\n');
+      let maxAmount = 0;
+      let foundTotal = false;
+
+      // 1. Try to find "Total" line
+      for (const line of lines) {
+        if (line.toLowerCase().includes('total')) {
+          const numbers = line.match(/[0-9]+(\.[0-9]{2})?/g);
+          if (numbers) {
+            const amount = parseFloat(numbers[numbers.length - 1]);
+            if (!isNaN(amount)) {
+              setExpenseAmount(amount.toString());
+              foundTotal = true;
+              break;
+            }
+          }
+        }
+      }
+
+      // 2. If no total, find largest number
+      if (!foundTotal) {
+        const allNumbers = text.match(/[0-9]+(\.[0-9]{2})?/g);
+        if (allNumbers) {
+          allNumbers.forEach(num => {
+            const val = parseFloat(num);
+            if (!isNaN(val) && val > maxAmount && val < 10000) { // Safety cap
+              maxAmount = val;
+            }
+          });
+          if (maxAmount > 0) {
+            setExpenseAmount(maxAmount.toString());
+          }
+        }
+      }
+
+      // 3. Try to guess description (first line? or merchant name?)
+      const description = lines[0]?.trim() || "Scanned Receipt";
+      if (!expenseDescription) {
+        setExpenseDescription(description.substring(0, 30));
+      }
+
+    } catch (err) {
+      console.error("OCR Error:", err);
+      alert("Failed to read receipt. Please try again or enter details manually.");
+    } finally {
+      setProcessingReceipt(false);
+    }
+  };
 
   useEffect(() => {
     if (groupId) {
@@ -289,6 +458,46 @@ export function GroupDetails() {
   const balances = group ? calculateBalances(expenses, settlements, group.members) : new Map();
   const debts = getSimplifiedDebts(balances);
 
+  // Analytics Data
+  const categoryData = React.useMemo(() => {
+    const data = CATEGORIES.map(cat => {
+      const total = expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + e.amount, 0);
+      // Map Tailwind colors to Hex for Recharts
+      const colorMap: { [key: string]: string } = {
+        food: '#f97316', transport: '#3b82f6', housing: '#a855f7', shopping: '#ec4899',
+        utilities: '#eab308', entertainment: '#ef4444', health: '#22c55e', education: '#6366f1',
+        work: '#6b7280', fitness: '#06b6d4', other: '#64748b'
+      };
+      return {
+        name: cat.name,
+        value: total,
+        fill: colorMap[cat.id] || '#cbd5e1'
+      };
+    }).filter(item => item.value > 0);
+
+    const uncategorized = expenses.filter(e => !e.category).reduce((sum, e) => sum + e.amount, 0);
+    if (uncategorized > 0) {
+      data.push({ name: 'Uncategorized', value: uncategorized, fill: '#94a3b8' });
+    }
+
+    return data.sort((a, b) => b.value - a.value);
+  }, [expenses]);
+
+  const memberSpendingData = React.useMemo(() => {
+    if (!group) return [];
+    return group.members.map(member => {
+      const totalPaid = expenses.filter(e => e.paidBy === member.uid).reduce((sum, e) => sum + e.amount, 0);
+      return {
+        name: member.displayName.split(' ')[0], // First name only for clearer charts
+        amount: totalPaid,
+        fill: '#8b5cf6' // Violet-500
+      };
+    }).sort((a, b) => b.amount - a.amount);
+  }, [expenses, group]);
+
+  const topSpender = memberSpendingData.length > 0 ? memberSpendingData[0] : null;
+  const topCategory = categoryData.length > 0 ? categoryData[0] : null;
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -330,16 +539,16 @@ export function GroupDetails() {
   if (!isMember) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500 overflow-x-hidden">
-        <header className="bg-white/10 backdrop-blur-md border-b border-white/20 sticky top-0 z-10 shadow-sm">
+        <header className="glass sticky top-0 z-10 border-b-0">
           <div className="max-w-4xl mx-auto px-4 py-4">
-            <Button variant="ghost" onClick={() => navigate('/')} className="-ml-4 text-white hover:bg-white/20 hover:text-white">
+            <Button variant="ghost" onClick={() => navigate('/')} className="-ml-4 text-white hover:bg-white/20 hover:text-white transition-all hover:-translate-x-1">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
           </div>
         </header>
         <main className="max-w-4xl mx-auto px-4 py-12">
-          <Card className="text-center py-12 bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
+          <Card className="text-center py-12 glass-card border-0 shadow-2xl">
             <CardContent>
               <Users className="w-16 h-16 text-purple-200 mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2">{group.name}</h2>
@@ -368,15 +577,15 @@ export function GroupDetails() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500 pb-10">
       {/* Header */}
-      <header className="bg-white/10 backdrop-blur-md border-b border-white/20 sticky top-0 z-10 shadow-sm">
+      <header className="glass sticky top-0 z-10 border-b-0">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Button variant="ghost" onClick={() => navigate('/')} className="-ml-4 text-white hover:bg-white/20 hover:text-white">
+            <Button variant="ghost" onClick={() => navigate('/')} className="-ml-4 text-white hover:bg-white/20 hover:text-white transition-all hover:-translate-x-1">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
             {!isAdmin && (
-              <Button variant="ghost" size="sm" onClick={handleLeaveGroup} className="text-red-200 hover:text-red-100 hover:bg-red-500/20">
+              <Button variant="ghost" size="sm" onClick={handleLeaveGroup} className="text-red-200 hover:text-red-100 hover:bg-red-500/20 transition-all hover:scale-105">
                 <LogOut className="w-4 h-4 mr-2" />
                 Leave
               </Button>
@@ -384,8 +593,8 @@ export function GroupDetails() {
 
           </div>
           <div className="mt-4">
-            <h1 className="text-2xl font-bold text-white">{group.name}</h1>
-            <p className="text-white/70 text-sm">{group.description}</p>
+            <h1 className="text-3xl font-bold text-white tracking-tight drop-shadow-md">{group.name}</h1>
+            <p className="text-white/80 text-sm font-medium">{group.description}</p>
           </div>
         </div>
       </header>
@@ -393,12 +602,12 @@ export function GroupDetails() {
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         <Tabs defaultValue="expenses" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-4 bg-white/20 p-1 rounded-lg">
-            <TabsTrigger value="expenses" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white hover:bg-white/10 text-xs sm:text-sm">Expenses</TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white hover:bg-white/10 text-xs sm:text-sm">Analytics</TabsTrigger>
-            <TabsTrigger value="balances" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white hover:bg-white/10 text-xs sm:text-sm">Balances</TabsTrigger>
-            <TabsTrigger value="members" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white hover:bg-white/10 text-xs sm:text-sm">Members</TabsTrigger>
-            <TabsTrigger value="history" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white hover:bg-white/10 text-xs sm:text-sm">History</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-5 mb-4 p-1 rounded-xl border border-white/20 bg-white/10 backdrop-blur-md">
+            <TabsTrigger value="expenses" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white/90 bg-white/5 hover:bg-white/20 text-xs sm:text-sm font-medium transition-all">Expenses</TabsTrigger>
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white/90 bg-white/5 hover:bg-white/20 text-xs sm:text-sm font-medium transition-all">Analytics</TabsTrigger>
+            <TabsTrigger value="balances" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white/90 bg-white/5 hover:bg-white/20 text-xs sm:text-sm font-medium transition-all">Balances</TabsTrigger>
+            <TabsTrigger value="members" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white/90 bg-white/5 hover:bg-white/20 text-xs sm:text-sm font-medium transition-all">Members</TabsTrigger>
+            <TabsTrigger value="history" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white/90 bg-white/5 hover:bg-white/20 text-xs sm:text-sm font-medium transition-all">History</TabsTrigger>
           </TabsList>
 
           {/* Expenses Tab */}
@@ -424,6 +633,39 @@ export function GroupDetails() {
                       <DialogTitle>Add Expense</DialogTitle>
                       <DialogDescription>Record a new shared expense</DialogDescription>
                     </DialogHeader>
+
+                    <div className="flex gap-2 mb-2 mt-4">
+                      <Button
+                        type="button"
+                        variant={listening ? "destructive" : "outline"}
+                        className="flex-1 border-dashed"
+                        onClick={startListening}
+                      >
+                        {listening ? <MicOff className="w-4 h-4 mr-2 animate-pulse" /> : <Mic className="w-4 h-4 mr-2" />}
+                        {listening ? 'Listening...' : 'Voice Input'}
+                      </Button>
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          id="receipt-upload"
+                          className="hidden"
+                          onChange={handleReceiptUpload}
+                          disabled={processingReceipt}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full border-dashed"
+                          disabled={processingReceipt}
+                          onClick={() => document.getElementById('receipt-upload')?.click()}
+                        >
+                          {processingReceipt ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ImageIcon className="w-4 h-4 mr-2" />}
+                          {processingReceipt ? 'Scanning...' : 'Scan Receipt'}
+                        </Button>
+                      </div>
+                    </div>
+
                     <form onSubmit={handleAddExpense}>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
@@ -521,7 +763,7 @@ export function GroupDetails() {
             ) : (
               <div className="space-y-3">
                 {expenses.map((expense) => (
-                  <Card key={expense.id} className="bg-white/95 backdrop-blur-sm border-0 shadow-sm hover:shadow-md transition-shadow">
+                  <Card key={expense.id} className="glass-card border-0">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
@@ -558,79 +800,103 @@ export function GroupDetails() {
           </TabsContent>
 
           {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-4">
-            <h2 className="text-lg font-semibold text-white">Spending Breakdown</h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium">Total Spending</CardTitle>
+          <TabsContent value="analytics" className="space-y-6">
+            <h2 className="text-lg font-semibold text-white">Visual Breakdown</h2>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card className="glass-card border-0">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-200">Total Spending</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {formatCurrency(expenses.reduce((acc, curr) => acc + curr.amount, 0))}
-                  </div>
-                  <p className="text-xs text-gray-500 text-muted-foreground">
-                    Across {expenses.length} expenses
-                  </p>
+                  <div className="text-2xl font-bold">{formatCurrency(expenses.reduce((acc, curr) => acc + curr.amount, 0))}</div>
+                  <p className="text-xs text-gray-400">Across {expenses.length} expenses</p>
+                </CardContent>
+              </Card>
+              <Card className="glass-card border-0">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-200">Top Spender</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{topSpender ? topSpender.name : '-'}</div>
+                  {topSpender && <p className="text-xs text-green-400 font-medium">{formatCurrency(topSpender.amount)} paid</p>}
+                </CardContent>
+              </Card>
+              <Card className="glass-card border-0">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-200">Top Category</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{topCategory ? topCategory.name : '-'}</div>
+                  {topCategory && <p className="text-xs text-blue-400 font-medium">{formatCurrency(topCategory.value)} total</p>}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card className="glass-card border-0">
+                <CardHeader>
+                  <CardTitle className="text-white">Spending by Category</CardTitle>
+                </CardHeader>
+                <CardContent className="h-[300px] flex items-center justify-center">
+                  {categoryData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={categoryData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          outerRadius={80}
+                          dataKey="value"
+                        >
+                          {categoryData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number) => formatCurrency(value)}
+                          contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none' }}
+                        />
+                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-gray-400 italic">No data to display</p>
+                  )}
                 </CardContent>
               </Card>
 
-              <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-lg md:col-span-2">
+              <Card className="glass-card border-0">
                 <CardHeader>
-                  <CardTitle>Spending by Category</CardTitle>
+                  <CardTitle className="text-white">Member Spending</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {CATEGORIES.map(category => {
-                      const categoryExpenses = expenses.filter(e => e.category === category.id);
-                      if (categoryExpenses.length === 0) return null;
-
-                      const total = categoryExpenses.reduce((acc, curr) => acc + curr.amount, 0);
-                      const allTotal = expenses.reduce((acc, curr) => acc + curr.amount, 0);
-                      const percentage = Math.round((total / allTotal) * 100);
-
-                      return (
-                        <div key={category.id} className="space-y-1">
-                          <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2">
-                              {getCategoryIcon(category.id)}
-                              <span className="font-medium">{category.name}</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="font-bold">{formatCurrency(total)}</span>
-                              <span className="text-gray-500 ml-2">({percentage}%)</span>
-                            </div>
-                          </div>
-                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full ${category.bg.replace('bg-', 'bg-').replace('-100', '-500')}`}
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {expenses.filter(e => !e.category).length > 0 && (
-                      <div key="uncategorized" className="space-y-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            {getCategoryIcon('other')}
-                            <span className="font-medium">Uncategorized</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="font-bold">{formatCurrency(expenses.filter(e => !e.category).reduce((acc, curr) => acc + curr.amount, 0))}</span>
-                            <span className="text-gray-500 ml-2">({Math.round((expenses.filter(e => !e.category).reduce((acc, curr) => acc + curr.amount, 0) / expenses.reduce((acc, curr) => acc + curr.amount, 0)) * 100)}%)</span>
-                          </div>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-slate-500"
-                            style={{ width: `${Math.round((expenses.filter(e => !e.category).reduce((acc, curr) => acc + curr.amount, 0) / expenses.reduce((acc, curr) => acc + curr.amount, 0)) * 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                <CardContent className="h-[300px]">
+                  {memberSpendingData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        layout="vertical"
+                        data={memberSpendingData}
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.1)" />
+                        <XAxis type="number" hide />
+                        <YAxis type="category" dataKey="name" width={80} tick={{ fill: 'white' }} axisLine={false} />
+                        <Tooltip
+                          formatter={(value: number) => formatCurrency(value)}
+                          cursor={{ fill: 'rgba(255,255,255,0.1)' }}
+                          contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none' }}
+                        />
+                        <Bar dataKey="amount" radius={[0, 4, 4, 0]} barSize={32}>
+                          {memberSpendingData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-gray-400 italic">No data to display</p>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -656,7 +922,7 @@ export function GroupDetails() {
                   const isCurrentUserDebt = debt.from === currentUser?.uid;
 
                   return (
-                    <Card key={index} className={`${isCurrentUserDebt ? 'border-orange-300 bg-orange-50/95' : 'bg-white/95'} backdrop-blur-sm shadow-sm border-0`}>
+                    <Card key={index} className={`${isCurrentUserDebt ? 'border-orange-300 bg-orange-50/90' : 'glass-card'} backdrop-blur-sm shadow-sm border-0`}>
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -686,7 +952,7 @@ export function GroupDetails() {
             )}
 
             {/* Individual Balances */}
-            <Card className="mt-6 bg-white/95 backdrop-blur-sm border-0 shadow-lg">
+            <Card className="mt-6 glass-card border-0">
               <CardHeader>
                 <CardTitle className="text-sm font-medium">Individual Balances</CardTitle>
               </CardHeader>
@@ -718,7 +984,7 @@ export function GroupDetails() {
               <h2 className="text-lg font-semibold text-white">Members ({group.members.length})</h2>
             </div>
 
-            <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-lg">
+            <Card className="glass-card border-0">
               <CardContent className="p-0">
                 {group.members.map((member, index) => (
                   <div key={member.uid}>
@@ -749,7 +1015,7 @@ export function GroupDetails() {
             {isAdmin && group.joinRequests && group.joinRequests.length > 0 && (
               <>
                 <h3 className="text-lg font-semibold mt-6 text-white">Pending Requests</h3>
-                <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-lg">
+                <Card className="glass-card border-0">
                   <CardContent className="p-0">
                     {group.joinRequests.map((request, index) => (
                       <div key={request.uid}>

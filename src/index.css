@@ -69,7 +69,30 @@
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased selection:bg-purple-500/30;
+  }
+}
+
+@layer components {
+
+  /* Stronger glass effect with fallback */
+  .glass {
+    @apply bg-white bg-opacity-10 backdrop-blur-md border border-white/20 shadow-lg;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-card {
+    /* Made significantly more transparent (40% vs 70%) to show off background */
+    @apply bg-white/40 dark:bg-black/40 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-md hover:shadow-xl transition-all duration-300;
+  }
+
+  .glass-morphism {
+    @apply bg-white/10 backdrop-blur-lg border border-white/30 shadow-xl;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600;
   }
 }

@@ -62,14 +62,14 @@ export function Auth() {
     <div className="min-h-screen bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4">
-            <Wallet className="w-8 h-8 text-purple-600" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl shadow-lg mb-4 ring-1 ring-white/30">
+            <Wallet className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-white">SocialTab</h1>
           <p className="text-white/80 mt-2">The "I'll Pay You Later" Protocol</p>
         </div>
 
-        <Card className="border-0 shadow-2xl">
+        <Card className="glass-card border-0 shadow-2xl">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">Welcome</CardTitle>
             <CardDescription className="text-center">
