@@ -308,7 +308,7 @@ export async function getUserGroups(userId: string): Promise<Group[]> {
         isPublic: data.isPublic,
         createdBy: data.createdBy,
         createdAt: parseDate(data.createdAt),
-        members: data.members.map((m: any) => ({
+        members: members.map((m: any) => ({
           ...m,
           joinedAt: parseDate(m.joinedAt),
         })),
@@ -337,7 +337,7 @@ export async function getPublicGroups(): Promise<Group[]> {
         isPublic: data.isPublic,
         createdBy: data.createdBy,
         createdAt: parseDate(data.createdAt),
-        members: data.members.map((m: any) => ({
+        members: (data.members || []).map((m: any) => ({
           ...m,
           joinedAt: parseDate(m.joinedAt),
         })),
@@ -366,7 +366,7 @@ export async function getGroupById(groupId: string): Promise<Group | null> {
     isPublic: data.isPublic,
     createdBy: data.createdBy,
     createdAt: parseDate(data.createdAt),
-    members: data.members.map((m: any) => ({
+    members: (data.members || []).map((m: any) => ({
       ...m,
       joinedAt: parseDate(m.joinedAt),
     })),
@@ -400,7 +400,7 @@ export async function searchGroups(queryText: string): Promise<Group[]> {
         isPublic: data.isPublic,
         createdBy: data.createdBy,
         createdAt: parseDate(data.createdAt),
-        members: data.members.map((m: any) => ({
+        members: (data.members || []).map((m: any) => ({
           ...m,
           joinedAt: parseDate(m.joinedAt),
         })),

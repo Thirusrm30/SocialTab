@@ -53,6 +53,7 @@ import {
   Briefcase,
   Heart,
   MoreHorizontal,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   Select,
@@ -88,6 +89,7 @@ export function GroupDetails() {
   const [isMember, setIsMember] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Expense dialog state
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
@@ -107,6 +109,7 @@ export function GroupDetails() {
     if (!groupId || !currentUser) return;
 
     setLoading(true);
+    setError(null);
     try {
       const [groupData, groupExpenses, groupSettlements] = await Promise.all([
         getGroupById(groupId),
@@ -122,12 +125,15 @@ export function GroupDetails() {
         setHasPendingRequest(
           groupData.joinRequests?.some((r) => r.uid === currentUser.uid) || false
         );
+      } else {
+        setError("Group not found. It may have been deleted or you don't have permission to view it.");
       }
 
       setExpenses(groupExpenses);
       setSettlements(groupSettlements);
-    } catch (error) {
-      console.error('Error loading group data:', error);
+    } catch (err: any) {
+      console.error('Error loading group data:', err);
+      setError(err.message || "Failed to load group data. Please checking your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -308,10 +314,15 @@ export function GroupDetails() {
     );
   }
 
-  if (!group) {
+  if (error || !group) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Group not found</p>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
+        <div className="bg-red-50 p-4 rounded-full mb-4">
+          <AlertTriangle className="w-8 h-8 text-red-500" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h2>
+        <p className="text-gray-500 max-w-md mb-6">{error || "Group not found"}</p>
+        <Button onClick={() => navigate('/')}>Return to Dashboard</Button>
       </div>
     );
   }

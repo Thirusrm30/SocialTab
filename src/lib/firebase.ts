@@ -1,4 +1,36 @@
-// Mock Firebase implementation for demo purposes
+// Firebase implementation – real SDK (when env vars present) or mock (localStorage)
+import { initializeApp as firebaseInitializeApp } from 'firebase/app';
+import {
+  getAuth as firebaseGetAuth,
+  createUserWithEmailAndPassword as firebaseCreateUserWithEmailAndPassword,
+  signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword,
+  signInWithPopup as firebaseSignInWithPopup,
+  signOut as firebaseSignOut,
+  updateProfile as firebaseUpdateProfile,
+  onAuthStateChanged as firebaseOnAuthStateChanged,
+  GoogleAuthProvider as FirebaseGoogleAuthProvider,
+} from 'firebase/auth';
+import {
+  getFirestore as firebaseGetFirestore,
+  collection as firebaseCollection,
+  doc as firebaseDoc,
+  addDoc as firebaseAddDoc,
+  getDoc as firebaseGetDoc,
+  getDocs as firebaseGetDocs,
+  setDoc as firebaseSetDoc,
+  updateDoc as firebaseUpdateDoc,
+  deleteDoc as firebaseDeleteDoc,
+  query as firebaseQuery,
+  where as firebaseWhere,
+  orderBy as firebaseOrderBy,
+  serverTimestamp as firebaseServerTimestamp,
+  arrayUnion as firebaseArrayUnion,
+  arrayRemove as firebaseArrayRemove,
+  type WhereFilterOp,
+  type OrderByDirection,
+} from 'firebase/firestore';
+
+// Mock implementation for demo purposes
 // Uses localStorage for data persistence
 
 export interface MockUser {
@@ -291,151 +323,89 @@ function mockServerTimestamp() {
   return new Date().toISOString();
 }
 
-// --- Real Firebase implementation (optional, used when env vars present) ---
+// --- Real Firebase initialization (when env vars present) ---
+
 let realApp: any = null;
 let realAuth: any = null;
 let realDb: any = null;
-// Declare require for environments where Node types aren't available
-declare const require: any;
-
-// Predeclare real SDK wrappers to satisfy TypeScript analysis
-let realGetAuth: any;
-let realGetFirestore: any;
-let realInitializeApp: any;
-let realOnAuthStateChanged: any;
-let realCreateUserWithEmailAndPassword: any;
-let realSignInWithEmailAndPassword: any;
-let realSignInWithPopup: any;
-let realSignOut: any;
-let realUpdateProfile: any;
-let realGoogleAuthProvider: any;
-let realCollection: any;
-let realDoc: any;
-let realAddDoc: any;
-let realGetDoc: any;
-let realGetDocs: any;
-let realUpdateDoc: any;
-let realSetDoc: any;
-let realDeleteDoc: any;
-let realQuery: any;
-let realWhere: any;
-let realOrderBy: any;
-let realArrayUnion: any;
-let realArrayRemove: any;
-let realServerTimestamp: any;
 
 const useRealFirebase = Boolean(import.meta.env.VITE_FIREBASE_API_KEY);
 
 if (useRealFirebase) {
   try {
-    // Importing here keeps dev workflow intact when env vars absent
-    // and avoids bundling the SDK when only mock is needed.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { initializeApp: firebaseInitializeApp } = require('firebase/app');
-    const {
-      getAuth: firebaseGetAuth,
-      createUserWithEmailAndPassword: firebaseCreateUserWithEmailAndPassword,
-      signInWithEmailAndPassword: firebaseSignInWithEmailAndPassword,
-      signInWithPopup: firebaseSignInWithPopup,
-      signOut: firebaseSignOut,
-      updateProfile: firebaseUpdateProfile,
-      onAuthStateChanged: firebaseOnAuthStateChanged,
-      GoogleAuthProvider: FirebaseGoogleAuthProvider,
-    } = require('firebase/auth');
-    const {
-      getFirestore: firebaseGetFirestore,
-      collection: firebaseCollection,
-      doc: firebaseDoc,
-      addDoc: firebaseAddDoc,
-      getDoc: firebaseGetDoc,
-      getDocs: firebaseGetDocs,
-      setDoc: firebaseSetDoc,
-      updateDoc: firebaseUpdateDoc,
-      deleteDoc: firebaseDeleteDoc,
-      query: firebaseQuery,
-      where: firebaseWhere,
-      orderBy: firebaseOrderBy,
-      serverTimestamp: firebaseServerTimestamp,
-      arrayUnion: firebaseArrayUnion,
-      arrayRemove: firebaseArrayRemove,
-    } = require('firebase/firestore');
-
     const firebaseConfig = {
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN = "fairshare-pwa.firebaseapp.com",
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID = "fairshare-pwa",
-      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET = "fairshare-pwa.firebasestorage.app",
-      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID = "468726458796",
-      appId: import.meta.env.VITE_FIREBASE_APP_ID = "1:468726458796:web:65833edf2672921e08f209",
-      //measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "fairshare-pwa.firebaseapp.com",
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "fairshare-pwa",
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "fairshare-pwa.firebasestorage.app",
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "468726458796",
+      appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:468726458796:web:65833edf2672921e08f209",
     };
 
     realApp = firebaseInitializeApp(firebaseConfig);
     realAuth = firebaseGetAuth(realApp);
     realDb = firebaseGetFirestore(realApp);
-
-    // Real wrappers (assign to predeclared variables)
-    realGetAuth = () => realAuth;
-    realGetFirestore = () => realDb;
-    realInitializeApp = (_config: any) => realApp;
-    realOnAuthStateChanged = (authInst: any, cb: any) => firebaseOnAuthStateChanged(authInst, cb);
-    realCreateUserWithEmailAndPassword = (authInst: any, email: string, password: string) =>
-      firebaseCreateUserWithEmailAndPassword(authInst, email, password);
-    realSignInWithEmailAndPassword = (authInst: any, email: string, password: string) =>
-      firebaseSignInWithEmailAndPassword(authInst, email, password);
-    realSignInWithPopup = (authInst: any, provider: any) => firebaseSignInWithPopup(authInst, provider);
-    realSignOut = (authInst: any) => firebaseSignOut(authInst);
-    realUpdateProfile = (user: any, profile: any) => firebaseUpdateProfile(user, profile);
-    realGoogleAuthProvider = FirebaseGoogleAuthProvider;
-
-    realCollection = (dbInst: any, name: string) => firebaseCollection(dbInst, name);
-    realDoc = (dbInst: any, collectionName: string, id: string) => firebaseDoc(dbInst, collectionName, id);
-    realAddDoc = (collectionRef: any, data: any) => firebaseAddDoc(collectionRef, data);
-    realGetDoc = (docRef: any) => firebaseGetDoc(docRef);
-    realGetDocs = (queryRef: any) => firebaseGetDocs(queryRef);
-    realUpdateDoc = (docRef: any, data: any) => firebaseUpdateDoc(docRef, data);
-    realSetDoc = (docRef: any, data: any, options: any) => firebaseSetDoc(docRef, data, options);
-    realDeleteDoc = (docRef: any) => firebaseDeleteDoc(docRef);
-    realQuery = (collectionRef: any, ...constraints: any[]) => firebaseQuery(collectionRef, ...constraints);
-    realWhere = (field: string, op: string, value: any) => firebaseWhere(field, op, value);
-    realOrderBy = (field: string, direction: string = 'asc') => firebaseOrderBy(field, direction);
-    realArrayUnion = (...items: any[]) => firebaseArrayUnion(...items);
-    realArrayRemove = (...items: any[]) => firebaseArrayRemove(...items);
-    realServerTimestamp = () => firebaseServerTimestamp();
   } catch (err) {
-    // If require/import fails, fall back to mock
+    console.error('Firebase initialization failed:', err);
     realApp = null;
     realAuth = null;
     realDb = null;
   }
 }
 
+// Real wrappers
+const realOnAuthStateChanged = (authInst: any, cb: any) => firebaseOnAuthStateChanged(authInst, cb);
+const realCreateUserWithEmailAndPassword = (authInst: any, email: string, password: string) =>
+  firebaseCreateUserWithEmailAndPassword(authInst, email, password);
+const realSignInWithEmailAndPassword = (authInst: any, email: string, password: string) =>
+  firebaseSignInWithEmailAndPassword(authInst, email, password);
+const realSignInWithPopup = (authInst: any, provider: any) => firebaseSignInWithPopup(authInst, provider);
+const realSignOut = (authInst: any) => firebaseSignOut(authInst);
+const realUpdateProfile = (user: any, profile: any) => firebaseUpdateProfile(user, profile);
+
+const realCollectionFn = (dbInst: any, name: string) => firebaseCollection(dbInst, name);
+const realDocFn = (dbInst: any, collectionName: string, id: string) => firebaseDoc(dbInst, collectionName, id);
+const realAddDocFn = (collectionRef: any, data: any) => firebaseAddDoc(collectionRef, data);
+const realGetDocFn = (docRef: any) => firebaseGetDoc(docRef);
+const realGetDocsFn = (queryRef: any) => firebaseGetDocs(queryRef);
+const realUpdateDocFn = (docRef: any, data: any) => firebaseUpdateDoc(docRef, data);
+const realSetDocFn = (docRef: any, data: any, options: any) => firebaseSetDoc(docRef, data, options);
+const realDeleteDocFn = (docRef: any) => firebaseDeleteDoc(docRef);
+const realQueryFn = (collectionRef: any, ...constraints: any[]) => firebaseQuery(collectionRef, ...constraints);
+const realWhereFn = (field: string, op: WhereFilterOp, value: any) => firebaseWhere(field, op, value);
+const realOrderByFn = (field: string, direction: OrderByDirection = 'asc') => firebaseOrderBy(field, direction);
+const realArrayUnionFn = (...items: any[]) => firebaseArrayUnion(...items);
+const realArrayRemoveFn = (...items: any[]) => firebaseArrayRemove(...items);
+const realServerTimestampFn = () => firebaseServerTimestamp();
+
 // Exported API (choose real or mock at runtime)
 export const app = useRealFirebase && realApp ? realApp : mockApp;
 export const auth = useRealFirebase && realAuth ? realAuth : mockAuth;
 export const db = useRealFirebase && realDb ? realDb : mockDb;
 
-export const getAuth = useRealFirebase && realAuth ? realGetAuth : mockGetAuth;
-export const getFirestore = useRealFirebase && realDb ? realGetFirestore : mockGetFirestore;
-export const initializeApp = useRealFirebase && realApp ? realInitializeApp : mockInitializeApp;
+export const getAuth = useRealFirebase && realAuth ? () => realAuth : mockGetAuth;
+export const getFirestore = useRealFirebase && realDb ? () => realDb : mockGetFirestore;
+export const initializeApp = useRealFirebase && realApp ? () => realApp : mockInitializeApp;
 export const onAuthStateChanged = useRealFirebase && realAuth ? realOnAuthStateChanged : mockOnAuthStateChanged;
 export const createUserWithEmailAndPassword = useRealFirebase && realAuth ? realCreateUserWithEmailAndPassword : mockCreateUserWithEmailAndPassword;
 export const signInWithEmailAndPassword = useRealFirebase && realAuth ? realSignInWithEmailAndPassword : mockSignInWithEmailAndPassword;
 export const signInWithPopup = useRealFirebase && realAuth ? realSignInWithPopup : mockSignInWithPopup;
 export const signOut = useRealFirebase && realAuth ? realSignOut : mockSignOut;
 export const updateProfile = useRealFirebase && realAuth ? realUpdateProfile : mockUpdateProfile;
-export const GoogleAuthProvider = useRealFirebase && realAuth ? realGoogleAuthProvider : class GoogleAuthProvider { };
+export const GoogleAuthProvider = useRealFirebase && realAuth ? FirebaseGoogleAuthProvider : class GoogleAuthProvider { };
 
-export const collection = useRealFirebase && realDb ? realCollection : mockCollection;
-export const doc = useRealFirebase && realDb ? realDoc : mockDoc;
-export const addDoc = useRealFirebase && realDb ? realAddDoc : mockAddDoc;
-export const getDoc = useRealFirebase && realDb ? realGetDoc : mockGetDoc;
-export const getDocs = useRealFirebase && realDb ? realGetDocs : mockGetDocs;
-export const updateDoc = useRealFirebase && realDb ? realUpdateDoc : mockUpdateDoc;
-export const setDoc = useRealFirebase && realDb ? realSetDoc : mockSetDoc;
-export const deleteDoc = useRealFirebase && realDb ? realDeleteDoc : mockDeleteDoc;
-export const query = useRealFirebase && realDb ? realQuery : mockQuery;
-export const where = useRealFirebase && realDb ? realWhere : mockWhere;
-export const orderBy = useRealFirebase && realDb ? realOrderBy : mockOrderBy;
-export const arrayUnion = useRealFirebase && realDb ? realArrayUnion : mockArrayUnion;
-export const arrayRemove = useRealFirebase && realDb ? realArrayRemove : mockArrayRemove;
-export const serverTimestamp = useRealFirebase && realDb ? realServerTimestamp : mockServerTimestamp;
+export const collection = useRealFirebase && realDb ? realCollectionFn : mockCollection;
+export const doc = useRealFirebase && realDb ? realDocFn : mockDoc;
+export const addDoc = useRealFirebase && realDb ? realAddDocFn : mockAddDoc;
+export const getDoc = useRealFirebase && realDb ? realGetDocFn : mockGetDoc;
+export const getDocs = useRealFirebase && realDb ? realGetDocsFn : mockGetDocs;
+export const updateDoc = useRealFirebase && realDb ? realUpdateDocFn : mockUpdateDoc;
+export const setDoc = useRealFirebase && realDb ? realSetDocFn : mockSetDoc;
+export const deleteDoc = useRealFirebase && realDb ? realDeleteDocFn : mockDeleteDoc;
+export const query = useRealFirebase && realDb ? realQueryFn : mockQuery;
+export const where = useRealFirebase && realDb ? realWhereFn : mockWhere;
+export const orderBy = useRealFirebase && realDb ? realOrderByFn : mockOrderBy;
+export const arrayUnion = useRealFirebase && realDb ? realArrayUnionFn : mockArrayUnion;
+export const arrayRemove = useRealFirebase && realDb ? realArrayRemoveFn : mockArrayRemove;
+export const serverTimestamp = useRealFirebase && realDb ? realServerTimestampFn : mockServerTimestamp;
+
