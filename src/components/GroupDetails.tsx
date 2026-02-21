@@ -152,13 +152,10 @@ export function GroupDetails() {
   };
 
   const parseVoiceInput = (text: string) => {
-    // Simple heuristic: "Title Amount" -> "Dinner 50"
     const words = text.split(' ');
     let amountIdx = -1;
 
-    // Find last number
     for (let i = words.length - 1; i >= 0; i--) {
-      // Remove symbols like $
       const cleanWord = words[i].replace(/[^0-9.]/g, '');
       if (cleanWord && !isNaN(parseFloat(cleanWord))) {
         amountIdx = i;
@@ -166,7 +163,6 @@ export function GroupDetails() {
       }
     }
 
-    // Category matching heuristic
     const CATEGORY_KEYWORDS: { [key: string]: string[] } = {
       food: ['food', 'meal', 'dinner', 'lunch', 'breakfast', 'snack', 'restaurant', 'cafe', 'groceries', 'coffee'],
       transport: ['taxi', 'uber', 'bus', 'train', 'flight', 'ticket', 'fuel', 'gas', 'car', 'parking'],
@@ -182,7 +178,6 @@ export function GroupDetails() {
     let matchedCategory = 'other';
     const lowerText = text.toLowerCase();
 
-    // Check if any word matches a category keyword
     for (const [catId, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
       if (keywords.some(keyword => lowerText.includes(keyword))) {
         matchedCategory = catId;
@@ -197,7 +192,6 @@ export function GroupDetails() {
       setExpenseAmount(amountStr);
       setExpenseDescription(description.charAt(0).toUpperCase() + description.slice(1));
     } else {
-      // Fallback: just description
       setExpenseDescription(text.charAt(0).toUpperCase() + text.slice(1));
     }
 
@@ -217,13 +211,10 @@ export function GroupDetails() {
 
       console.log("OCR Text:", text);
 
-      // Simple heuristic to find total amount
-      // Look for lines with "Total" or largest number
       const lines = text.split('\n');
       let maxAmount = 0;
       let foundTotal = false;
 
-      // 1. Try to find "Total" line
       for (const line of lines) {
         if (line.toLowerCase().includes('total')) {
           const numbers = line.match(/[0-9]+(\.[0-9]{2})?/g);
@@ -238,13 +229,12 @@ export function GroupDetails() {
         }
       }
 
-      // 2. If no total, find largest number
       if (!foundTotal) {
         const allNumbers = text.match(/[0-9]+(\.[0-9]{2})?/g);
         if (allNumbers) {
           allNumbers.forEach(num => {
             const val = parseFloat(num);
-            if (!isNaN(val) && val > maxAmount && val < 10000) { // Safety cap
+            if (!isNaN(val) && val > maxAmount && val < 10000) {
               maxAmount = val;
             }
           });
@@ -254,7 +244,6 @@ export function GroupDetails() {
         }
       }
 
-      // 3. Try to guess description (first line? or merchant name?)
       const description = lines[0]?.trim() || "Scanned Receipt";
       if (!expenseDescription) {
         setExpenseDescription(description.substring(0, 30));
@@ -324,7 +313,6 @@ export function GroupDetails() {
       ]);
 
       if (budget !== null) {
-        // Calculate the user's share of the new expense
         const isUserInSplit = selectedMembers.includes(currentUser.uid);
         if (isUserInSplit) {
           const userShare = amount / selectedMembers.length;
@@ -462,7 +450,6 @@ export function GroupDetails() {
   const categoryData = React.useMemo(() => {
     const data = CATEGORIES.map(cat => {
       const total = expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + e.amount, 0);
-      // Map Tailwind colors to Hex for Recharts
       const colorMap: { [key: string]: string } = {
         food: '#f97316', transport: '#3b82f6', housing: '#a855f7', shopping: '#ec4899',
         utilities: '#eab308', entertainment: '#ef4444', health: '#22c55e', education: '#6366f1',
@@ -488,9 +475,9 @@ export function GroupDetails() {
     return group.members.map(member => {
       const totalPaid = expenses.filter(e => e.paidBy === member.uid).reduce((sum, e) => sum + e.amount, 0);
       return {
-        name: member.displayName.split(' ')[0], // First name only for clearer charts
+        name: member.displayName.split(' ')[0],
         amount: totalPaid,
-        fill: '#8b5cf6' // Violet-500
+        fill: '#2E8B8B'
       };
     }).sort((a, b) => b.amount - a.amount);
   }, [expenses, group]);
@@ -509,7 +496,7 @@ export function GroupDetails() {
     const category = CATEGORIES.find(c => c.id === categoryId) || CATEGORIES.find(c => c.id === 'other')!;
     const Icon = category.icon;
     return (
-      <div className={`w-8 h-8 rounded-full ${category.bg} flex items-center justify-center`}>
+      <div className={`w-9 h-9 rounded-xl ${category.bg} flex items-center justify-center`}>
         <Icon className={`w-4 h-4 ${category.color}`} />
       </div>
     );
@@ -517,54 +504,73 @@ export function GroupDetails() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+      <div className="min-h-screen flex items-center justify-center app-bg">
+        <Loader2 className="w-8 h-8 animate-spin text-[#2E8B8B]" />
       </div>
     );
   }
 
   if (error || !group) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
-        <div className="bg-red-50 p-4 rounded-full mb-4">
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center app-bg">
+        <div className="bg-red-50 p-4 rounded-2xl mb-4">
           <AlertTriangle className="w-8 h-8 text-red-500" />
         </div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h2>
-        <p className="text-gray-500 max-w-md mb-6">{error || "Group not found"}</p>
-        <Button onClick={() => navigate('/')}>Return to Dashboard</Button>
+        <h2 className="text-xl font-bold text-[#1F3A5F] mb-2">Something went wrong</h2>
+        <p className="text-[#6B7F99] max-w-md mb-6">{error || "Group not found"}</p>
+        <Button
+          onClick={() => navigate('/')}
+          className="rounded-xl"
+          style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2a4e7f 100%)' }}
+        >
+          Return to dashboard
+        </Button>
       </div>
     );
   }
 
   if (!isMember) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500 overflow-x-hidden">
-        <header className="glass sticky top-0 z-10 border-b-0">
+      <div className="min-h-screen app-bg">
+        <header className="header-band sticky top-0 z-10 shadow-card">
           <div className="max-w-4xl mx-auto px-4 py-4">
-            <Button variant="ghost" onClick={() => navigate('/')} className="-ml-4 text-white hover:bg-white/20 hover:text-white transition-all hover:-translate-x-1">
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/')}
+              className="-ml-4 text-white/80 hover:bg-white/10 hover:text-white transition-all"
+            >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
           </div>
         </header>
         <main className="max-w-4xl mx-auto px-4 py-12">
-          <Card className="text-center py-12 glass-card border-0 shadow-2xl">
+          <Card className="text-center py-12 st-card animate-fade-up">
             <CardContent>
-              <Users className="w-16 h-16 text-purple-200 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold mb-2">{group.name}</h2>
-              <p className="text-gray-500 mb-6">{group.description}</p>
-              <p className="text-sm text-gray-400 mb-6">
+              <div
+                className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-soft"
+                style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2E8B8B 100%)' }}
+              >
+                <Users className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-[#1F3A5F] mb-2">{group.name}</h2>
+              <p className="text-[#6B7F99] mb-4">{group.description}</p>
+              <p className="text-sm text-[#9DAEC5] mb-6">
                 {group.members.length} members · {group.isPublic ? 'Public' : 'Private'} group
               </p>
               {hasPendingRequest ? (
-                <Badge variant="secondary" className="px-4 py-2">
+                <Badge variant="secondary" className="px-4 py-2 bg-[#F4B860]/15 text-[#c47e1f] border-[#F4B860]/30">
                   <Clock className="w-4 h-4 mr-2" />
                   Join request pending
                 </Badge>
               ) : (
-                <Button onClick={handleJoinRequest} className="bg-gradient-to-r from-violet-600 to-indigo-600">
+                <Button
+                  onClick={handleJoinRequest}
+                  className="rounded-xl font-semibold shadow-soft"
+                  style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2a4e7f 100%)' }}
+                >
                   <UserPlus className="w-4 h-4 mr-2" />
-                  Request to Join
+                  Request to join
                 </Button>
               )}
             </CardContent>
@@ -575,25 +581,33 @@ export function GroupDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500 pb-10">
+    <div className="min-h-screen app-bg pb-10">
       {/* Header */}
-      <header className="glass sticky top-0 z-10 border-b-0">
+      <header className="header-band sticky top-0 z-10 shadow-card">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Button variant="ghost" onClick={() => navigate('/')} className="-ml-4 text-white hover:bg-white/20 hover:text-white transition-all hover:-translate-x-1">
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/')}
+              className="-ml-4 text-white/80 hover:bg-white/10 hover:text-white transition-all"
+            >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
             {!isAdmin && (
-              <Button variant="ghost" size="sm" onClick={handleLeaveGroup} className="text-red-200 hover:text-red-100 hover:bg-red-500/20 transition-all hover:scale-105">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLeaveGroup}
+                className="text-red-200 hover:text-red-100 hover:bg-red-500/20 transition-all"
+              >
                 <LogOut className="w-4 h-4 mr-2" />
                 Leave
               </Button>
             )}
-
           </div>
-          <div className="mt-4">
-            <h1 className="text-3xl font-bold text-white tracking-tight drop-shadow-md">{group.name}</h1>
+          <div className="mt-3">
+            <h1 className="text-2xl font-bold text-white tracking-tight">{group.name}</h1>
             <p className="text-white/80 text-sm font-medium">{group.description}</p>
           </div>
         </div>
@@ -602,35 +616,72 @@ export function GroupDetails() {
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         <Tabs defaultValue="expenses" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-4 p-1 rounded-xl border border-white/20 bg-white/10 backdrop-blur-md">
-            <TabsTrigger value="expenses" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white/90 bg-white/5 hover:bg-white/20 text-xs sm:text-sm font-medium transition-all">Expenses</TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white/90 bg-white/5 hover:bg-white/20 text-xs sm:text-sm font-medium transition-all">Analytics</TabsTrigger>
-            <TabsTrigger value="balances" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white/90 bg-white/5 hover:bg-white/20 text-xs sm:text-sm font-medium transition-all">Balances</TabsTrigger>
-            <TabsTrigger value="members" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white/90 bg-white/5 hover:bg-white/20 text-xs sm:text-sm font-medium transition-all">Members</TabsTrigger>
-            <TabsTrigger value="history" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white/90 bg-white/5 hover:bg-white/20 text-xs sm:text-sm font-medium transition-all">History</TabsTrigger>
+          <TabsList
+            className="grid w-full grid-cols-5 mb-4 p-1 rounded-xl border border-[#E3EAF4] shadow-soft"
+            style={{ background: '#F0F4FB' }}
+          >
+            <TabsTrigger
+              value="expenses"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all"
+            >
+              Expenses
+            </TabsTrigger>
+            <TabsTrigger
+              value="analytics"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all"
+            >
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger
+              value="balances"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all"
+            >
+              Balances
+            </TabsTrigger>
+            <TabsTrigger
+              value="members"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all"
+            >
+              Members
+            </TabsTrigger>
+            <TabsTrigger
+              value="history"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all"
+            >
+              History
+            </TabsTrigger>
           </TabsList>
 
           {/* Expenses Tab */}
           <TabsContent value="expenses" className="space-y-4">
             <div className="flex justify-between items-center gap-2">
-              <h2 className="text-lg font-semibold text-white">Expenses</h2>
+              <h2 className="text-lg font-bold text-[#1F3A5F]">Expenses</h2>
               <div className="flex items-center gap-2">
                 {isAdmin && (
-                  <Button size="sm" onClick={handleDeleteGroup} className="bg-white text-red-600 hover:bg-white/90 font-semibold shadow-lg">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleDeleteGroup}
+                    className="text-red-600 border-red-200 hover:bg-red-50 font-semibold rounded-lg"
+                  >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Group
+                    Delete group
                   </Button>
                 )}
                 <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" className="bg-white text-purple-600 hover:bg-white/90 font-semibold shadow-lg">
+                    <Button
+                      size="sm"
+                      className="rounded-lg font-semibold shadow-soft"
+                      style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2a4e7f 100%)' }}
+                    >
                       <Plus className="w-4 h-4 mr-2" />
-                      Add Expense
+                      Add expense
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-sm">
+                  <DialogContent className="max-w-sm rounded-2xl">
                     <DialogHeader>
-                      <DialogTitle>Add Expense</DialogTitle>
+                      <DialogTitle className="text-[#1F3A5F]">Add expense</DialogTitle>
                       <DialogDescription>Record a new shared expense</DialogDescription>
                     </DialogHeader>
 
@@ -638,11 +689,11 @@ export function GroupDetails() {
                       <Button
                         type="button"
                         variant={listening ? "destructive" : "outline"}
-                        className="flex-1 border-dashed"
+                        className="flex-1 border-dashed rounded-xl border-[#D3DFEE]"
                         onClick={startListening}
                       >
                         {listening ? <MicOff className="w-4 h-4 mr-2 animate-pulse" /> : <Mic className="w-4 h-4 mr-2" />}
-                        {listening ? 'Listening...' : 'Voice Input'}
+                        {listening ? 'Listening...' : 'Voice input'}
                       </Button>
                       <div className="flex-1">
                         <input
@@ -656,12 +707,12 @@ export function GroupDetails() {
                         <Button
                           type="button"
                           variant="outline"
-                          className="w-full border-dashed"
+                          className="w-full border-dashed rounded-xl border-[#D3DFEE]"
                           disabled={processingReceipt}
                           onClick={() => document.getElementById('receipt-upload')?.click()}
                         >
                           {processingReceipt ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ImageIcon className="w-4 h-4 mr-2" />}
-                          {processingReceipt ? 'Scanning...' : 'Scan Receipt'}
+                          {processingReceipt ? 'Scanning...' : 'Scan receipt'}
                         </Button>
                       </div>
                     </div>
@@ -669,9 +720,9 @@ export function GroupDetails() {
                     <form onSubmit={handleAddExpense}>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                          <Label htmlFor="category">Category</Label>
+                          <Label htmlFor="category" className="text-[#2B2B2B]">Category</Label>
                           <Select value={expenseCategory} onValueChange={setExpenseCategory}>
-                            <SelectTrigger>
+                            <SelectTrigger className="rounded-xl border-[#D3DFEE]">
                               <SelectValue placeholder="Select category" />
                             </SelectTrigger>
                             <SelectContent>
@@ -687,17 +738,18 @@ export function GroupDetails() {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="description">Description</Label>
+                          <Label htmlFor="description" className="text-[#2B2B2B]">Description</Label>
                           <Input
                             id="description"
                             placeholder="e.g., Dinner at restaurant"
                             value={expenseDescription}
                             onChange={(e) => setExpenseDescription(e.target.value)}
+                            className="rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B]"
                             required
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="amount">Amount ($)</Label>
+                          <Label htmlFor="amount" className="text-[#2B2B2B]">Amount ($)</Label>
                           <Input
                             id="amount"
                             type="number"
@@ -706,11 +758,12 @@ export function GroupDetails() {
                             placeholder="0.00"
                             value={expenseAmount}
                             onChange={(e) => setExpenseAmount(e.target.value)}
+                            className="rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B]"
                             required
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>Split Among</Label>
+                          <Label className="text-[#2B2B2B]">Split among</Label>
                           <div className="space-y-2 max-h-40 overflow-y-auto">
                             {group.members.map((member) => (
                               <div key={member.uid} className="flex items-center space-x-2">
@@ -727,7 +780,7 @@ export function GroupDetails() {
                                 />
                                 <label
                                   htmlFor={`member-${member.uid}`}
-                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-[#2B2B2B]"
                                 >
                                   {member.displayName}
                                   {member.uid === currentUser?.uid && ' (You)'}
@@ -741,9 +794,10 @@ export function GroupDetails() {
                         <Button
                           type="submit"
                           disabled={addingExpense || selectedMembers.length === 0}
-                          className="w-full"
+                          className="w-full rounded-xl font-semibold h-11"
+                          style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2a4e7f 100%)' }}
                         >
-                          {addingExpense ? 'Adding...' : 'Add Expense'}
+                          {addingExpense ? 'Adding...' : 'Add expense'}
                         </Button>
                       </DialogFooter>
                     </form>
@@ -753,38 +807,38 @@ export function GroupDetails() {
             </div>
 
             {expenses.length === 0 ? (
-              <Card className="border-dashed border-2 border-white/20 bg-white/10 backdrop-blur-sm shadow-none">
+              <Card className="border-dashed border-2 border-[#D3DFEE] bg-white shadow-none rounded-2xl">
                 <CardContent className="py-12 text-center">
-                  <Receipt className="w-12 h-12 text-white/50 mx-auto mb-4" />
-                  <p className="text-white font-medium">No expenses yet</p>
-                  <p className="text-sm text-white/70">Add your first expense to get started</p>
+                  <Receipt className="w-12 h-12 text-[#D3DFEE] mx-auto mb-4" />
+                  <p className="text-[#1F3A5F] font-medium">No expenses yet</p>
+                  <p className="text-sm text-[#6B7F99]">Add your first expense to get started</p>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-3">
                 {expenses.map((expense) => (
-                  <Card key={expense.id} className="glass-card border-0">
+                  <Card key={expense.id} className="st-card">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
                           {getCategoryIcon(expense.category)}
                           <div>
-                            <p className="font-medium">{expense.description}</p>
-                            <p className="text-sm text-gray-500">
+                            <p className="font-semibold text-[#1F3A5F]">{expense.description}</p>
+                            <p className="text-sm text-[#6B7F99]">
                               Paid by {expense.paidByName} · {expense.createdAt.toLocaleDateString()}
                             </p>
-                            <p className="text-xs text-gray-400 mt-1">
+                            <p className="text-xs text-[#9DAEC5] mt-1">
                               Split among {expense.splitAmong.length} people
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-lg">{formatCurrency(expense.amount)}</p>
+                          <p className="font-bold text-lg text-[#1F3A5F]">{formatCurrency(expense.amount)}</p>
                           {expense.paidBy === currentUser?.uid && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-red-500 h-8 mt-1"
+                              className="text-red-400 hover:text-red-600 h-8 mt-1"
                               onClick={() => handleDeleteExpense(expense.id)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -801,42 +855,42 @@ export function GroupDetails() {
 
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-6">
-            <h2 className="text-lg font-semibold text-white">Visual Breakdown</h2>
+            <h2 className="text-lg font-bold text-[#1F3A5F]">Visual breakdown</h2>
 
             <div className="grid gap-4 md:grid-cols-3">
-              <Card className="glass-card border-0">
+              <Card className="st-card">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-200">Total Spending</CardTitle>
+                  <CardTitle className="text-sm font-medium text-[#6B7F99]">Total spending</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(expenses.reduce((acc, curr) => acc + curr.amount, 0))}</div>
-                  <p className="text-xs text-gray-400">Across {expenses.length} expenses</p>
+                  <div className="text-2xl font-bold text-[#1F3A5F]">{formatCurrency(expenses.reduce((acc, curr) => acc + curr.amount, 0))}</div>
+                  <p className="text-xs text-[#9DAEC5]">Across {expenses.length} expenses</p>
                 </CardContent>
               </Card>
-              <Card className="glass-card border-0">
+              <Card className="st-card">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-200">Top Spender</CardTitle>
+                  <CardTitle className="text-sm font-medium text-[#6B7F99]">Top spender</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{topSpender ? topSpender.name : '-'}</div>
-                  {topSpender && <p className="text-xs text-green-400 font-medium">{formatCurrency(topSpender.amount)} paid</p>}
+                  <div className="text-2xl font-bold text-[#1F3A5F]">{topSpender ? topSpender.name : '-'}</div>
+                  {topSpender && <p className="text-xs text-[#2E8B8B] font-medium">{formatCurrency(topSpender.amount)} paid</p>}
                 </CardContent>
               </Card>
-              <Card className="glass-card border-0">
+              <Card className="st-card">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-200">Top Category</CardTitle>
+                  <CardTitle className="text-sm font-medium text-[#6B7F99]">Top category</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{topCategory ? topCategory.name : '-'}</div>
-                  {topCategory && <p className="text-xs text-blue-400 font-medium">{formatCurrency(topCategory.value)} total</p>}
+                  <div className="text-2xl font-bold text-[#1F3A5F]">{topCategory ? topCategory.name : '-'}</div>
+                  {topCategory && <p className="text-xs text-[#2E8B8B] font-medium">{formatCurrency(topCategory.value)} total</p>}
                 </CardContent>
               </Card>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Card className="glass-card border-0">
+              <Card className="st-card">
                 <CardHeader>
-                  <CardTitle className="text-white">Spending by Category</CardTitle>
+                  <CardTitle className="text-[#1F3A5F]">Spending by category</CardTitle>
                 </CardHeader>
                 <CardContent className="h-[300px] flex items-center justify-center">
                   {categoryData.length > 0 ? (
@@ -856,20 +910,20 @@ export function GroupDetails() {
                         </Pie>
                         <Tooltip
                           formatter={(value: number) => formatCurrency(value)}
-                          contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none' }}
+                          contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #E3EAF4', boxShadow: '0 2px 12px rgba(31,58,95,0.08)' }}
                         />
                         <Legend wrapperStyle={{ paddingTop: '20px' }} />
                       </PieChart>
                     </ResponsiveContainer>
                   ) : (
-                    <p className="text-gray-400 italic">No data to display</p>
+                    <p className="text-[#9DAEC5] italic">No data to display</p>
                   )}
                 </CardContent>
               </Card>
 
-              <Card className="glass-card border-0">
+              <Card className="st-card">
                 <CardHeader>
-                  <CardTitle className="text-white">Member Spending</CardTitle>
+                  <CardTitle className="text-[#1F3A5F]">Member spending</CardTitle>
                 </CardHeader>
                 <CardContent className="h-[300px]">
                   {memberSpendingData.length > 0 ? (
@@ -879,15 +933,15 @@ export function GroupDetails() {
                         data={memberSpendingData}
                         margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.1)" />
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E3EAF4" />
                         <XAxis type="number" hide />
-                        <YAxis type="category" dataKey="name" width={80} tick={{ fill: 'white' }} axisLine={false} />
+                        <YAxis type="category" dataKey="name" width={80} tick={{ fill: '#1F3A5F', fontSize: 13 }} axisLine={false} />
                         <Tooltip
                           formatter={(value: number) => formatCurrency(value)}
-                          cursor={{ fill: 'rgba(255,255,255,0.1)' }}
-                          contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none' }}
+                          cursor={{ fill: 'rgba(46,139,139,0.06)' }}
+                          contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #E3EAF4', boxShadow: '0 2px 12px rgba(31,58,95,0.08)' }}
                         />
-                        <Bar dataKey="amount" radius={[0, 4, 4, 0]} barSize={32}>
+                        <Bar dataKey="amount" radius={[0, 8, 8, 0]} barSize={32}>
                           {memberSpendingData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.fill} />
                           ))}
@@ -895,7 +949,7 @@ export function GroupDetails() {
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
-                    <p className="text-gray-400 italic">No data to display</p>
+                    <p className="text-[#9DAEC5] italic">No data to display</p>
                   )}
                 </CardContent>
               </Card>
@@ -904,14 +958,14 @@ export function GroupDetails() {
 
           {/* Balances Tab */}
           <TabsContent value="balances" className="space-y-4">
-            <h2 className="text-lg font-semibold text-white">Who Owes Whom</h2>
+            <h2 className="text-lg font-bold text-[#1F3A5F]">Who owes whom</h2>
 
             {debts.length === 0 ? (
-              <Card className="border-dashed border-2 border-white/20 bg-white/10 backdrop-blur-sm shadow-none">
+              <Card className="border-dashed border-2 border-[#D3DFEE] bg-white shadow-none rounded-2xl">
                 <CardContent className="py-12 text-center">
-                  <Scale className="w-12 h-12 text-white/50 mx-auto mb-4" />
-                  <p className="text-white font-medium">All settled up!</p>
-                  <p className="text-sm text-white/70">Everyone has paid their share</p>
+                  <Scale className="w-12 h-12 text-[#D3DFEE] mx-auto mb-4" />
+                  <p className="text-[#1F3A5F] font-medium">All settled up!</p>
+                  <p className="text-sm text-[#6B7F99]">Everyone has paid their share</p>
                 </CardContent>
               </Card>
             ) : (
@@ -922,21 +976,22 @@ export function GroupDetails() {
                   const isCurrentUserDebt = debt.from === currentUser?.uid;
 
                   return (
-                    <Card key={index} className={`${isCurrentUserDebt ? 'border-orange-300 bg-orange-50/90' : 'glass-card'} backdrop-blur-sm shadow-sm border-0`}>
+                    <Card key={index} className={`${isCurrentUserDebt ? 'border-amber-200 bg-amber-50/80' : 'st-card'} rounded-2xl shadow-soft`}>
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">{fromMember?.displayName}</span>
-                            <span className="text-gray-400">owes</span>
-                            <span className="font-medium">{toMember?.displayName}</span>
+                            <span className="font-semibold text-[#1F3A5F]">{fromMember?.displayName}</span>
+                            <span className="text-[#9DAEC5]">owes</span>
+                            <span className="font-semibold text-[#1F3A5F]">{toMember?.displayName}</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="font-bold text-lg">{formatCurrency(debt.amount)}</span>
+                            <span className="font-bold text-lg text-[#1F3A5F]">{formatCurrency(debt.amount)}</span>
                             {debt.from === currentUser?.uid && (
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleSettle(debt.from, debt.to, debt.amount)}
+                                className="rounded-lg border-[#2E8B8B] text-[#2E8B8B] hover:bg-[#2E8B8B]/5"
                               >
                                 <Check className="w-4 h-4 mr-1" />
                                 Settle
@@ -952,9 +1007,9 @@ export function GroupDetails() {
             )}
 
             {/* Individual Balances */}
-            <Card className="mt-6 glass-card border-0">
+            <Card className="mt-6 st-card">
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Individual Balances</CardTitle>
+                <CardTitle className="text-sm font-bold text-[#1F3A5F]">Individual balances</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -962,9 +1017,9 @@ export function GroupDetails() {
                     const balance = balances.get(member.uid) || 0;
                     return (
                       <div key={member.uid} className="flex justify-between items-center">
-                        <span className="text-sm">{member.displayName}</span>
+                        <span className="text-sm text-[#2B2B2B]">{member.displayName}</span>
                         <span
-                          className={`text-sm font-medium ${balance > 0 ? 'text-green-600' : balance < 0 ? 'text-red-600' : 'text-gray-500'
+                          className={`text-sm font-bold ${balance > 0 ? 'text-[#2E8B8B]' : balance < 0 ? 'text-red-500' : 'text-[#9DAEC5]'
                             }`}
                         >
                           {balance > 0 ? '+' : ''}
@@ -981,31 +1036,37 @@ export function GroupDetails() {
           {/* Members Tab */}
           <TabsContent value="members" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-white">Members ({group.members.length})</h2>
+              <h2 className="text-lg font-bold text-[#1F3A5F]">Members ({group.members.length})</h2>
             </div>
 
-            <Card className="glass-card border-0">
+            <Card className="st-card overflow-hidden">
               <CardContent className="p-0">
                 {group.members.map((member, index) => (
                   <div key={member.uid}>
                     <div className="p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-violet-400 to-indigo-400 rounded-full flex items-center justify-center text-white font-medium">
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-medium shadow-soft"
+                          style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2E8B8B 100%)' }}
+                        >
                           {member.displayName.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-medium">
+                          <p className="font-semibold text-[#1F3A5F]">
                             {member.displayName}
                             {member.uid === currentUser?.uid && ' (You)'}
                           </p>
-                          <p className="text-sm text-gray-500">{member.email}</p>
+                          <p className="text-sm text-[#9DAEC5]">{member.email}</p>
                         </div>
                       </div>
-                      <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>
+                      <Badge
+                        variant={member.role === 'admin' ? 'default' : 'secondary'}
+                        className={member.role === 'admin' ? 'bg-[#1F3A5F] text-white' : 'bg-[#E3EAF4] text-[#6B7F99]'}
+                      >
                         {member.role}
                       </Badge>
                     </div>
-                    {index < group.members.length - 1 && <Separator />}
+                    {index < group.members.length - 1 && <Separator className="bg-[#F0F4FB]" />}
                   </div>
                 ))}
               </CardContent>
@@ -1014,19 +1075,22 @@ export function GroupDetails() {
             {/* Join Requests (Admin Only) */}
             {isAdmin && group.joinRequests && group.joinRequests.length > 0 && (
               <>
-                <h3 className="text-lg font-semibold mt-6 text-white">Pending Requests</h3>
-                <Card className="glass-card border-0">
+                <h3 className="text-lg font-bold mt-6 text-[#1F3A5F]">Pending requests</h3>
+                <Card className="st-card overflow-hidden">
                   <CardContent className="p-0">
                     {group.joinRequests.map((request, index) => (
                       <div key={request.uid}>
                         <div className="p-4 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-red-400 rounded-full flex items-center justify-center text-white font-medium">
+                            <div
+                              className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-medium"
+                              style={{ background: 'linear-gradient(135deg, #F4B860 0%, #e09830 100%)' }}
+                            >
                               {request.displayName.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <p className="font-medium">{request.displayName}</p>
-                              <p className="text-sm text-gray-500">{request.email}</p>
+                              <p className="font-semibold text-[#1F3A5F]">{request.displayName}</p>
+                              <p className="text-sm text-[#9DAEC5]">{request.email}</p>
                             </div>
                           </div>
                           <div className="flex gap-2">
@@ -1034,18 +1098,21 @@ export function GroupDetails() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleRejectRequest(request)}
+                              className="rounded-lg border-red-200 text-red-500 hover:bg-red-50"
                             >
                               <X className="w-4 h-4" />
                             </Button>
                             <Button
                               size="sm"
                               onClick={() => handleApproveRequest(request)}
+                              className="rounded-lg"
+                              style={{ background: '#2E8B8B' }}
                             >
                               <Check className="w-4 h-4" />
                             </Button>
                           </div>
                         </div>
-                        {index < (group.joinRequests?.length || 0) - 1 && <Separator />}
+                        {index < (group.joinRequests?.length || 0) - 1 && <Separator className="bg-[#F0F4FB]" />}
                       </div>
                     ))}
                   </CardContent>
@@ -1056,33 +1123,35 @@ export function GroupDetails() {
 
           {/* History Tab */}
           <TabsContent value="history" className="space-y-4">
-            <h2 className="text-lg font-semibold text-white">Settlement History</h2>
+            <h2 className="text-lg font-bold text-[#1F3A5F]">Settlement history</h2>
 
             {settlements.length === 0 ? (
-              <Card className="border-dashed border-2 border-white/20 bg-white/10 backdrop-blur-sm shadow-none">
+              <Card className="border-dashed border-2 border-[#D3DFEE] bg-white shadow-none rounded-2xl">
                 <CardContent className="py-12 text-center">
-                  <History className="w-12 h-12 text-white/50 mx-auto mb-4" />
-                  <p className="text-white font-medium">No settlements yet</p>
+                  <History className="w-12 h-12 text-[#D3DFEE] mx-auto mb-4" />
+                  <p className="text-[#1F3A5F] font-medium">No settlements yet</p>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-3">
                 {settlements.map((settlement) => (
-                  <Card key={settlement.id} className="bg-white/95 backdrop-blur-sm border-0 shadow-sm">
+                  <Card key={settlement.id} className="st-card">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                          <div className="w-8 h-8 rounded-xl bg-[#2E8B8B]/10 flex items-center justify-center flex-shrink-0">
+                            <Check className="w-4 h-4 text-[#2E8B8B]" />
+                          </div>
                           <div className="flex items-baseline gap-2">
-                            <span className="font-medium text-sm">
+                            <span className="font-semibold text-sm text-[#1F3A5F]">
                               {settlement.fromUserName} paid {settlement.toUserName}
                             </span>
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-[#9DAEC5]">
                               {settlement.settledAt.toLocaleDateString()}
                             </span>
                           </div>
                         </div>
-                        <span className="font-bold text-green-600">
+                        <span className="font-bold text-[#2E8B8B]">
                           {formatCurrency(settlement.amount)}
                         </span>
                       </div>

@@ -74,8 +74,8 @@ export function Dashboard() {
 
   function getBudgetBarColor(pct: number): string {
     if (pct > 90) return 'bg-red-500';
-    if (pct >= 70) return 'bg-orange-500';
-    return 'bg-green-500';
+    if (pct >= 70) return 'bg-amber-500';
+    return 'bg-teal-500';
   }
 
   useEffect(() => {
@@ -196,7 +196,6 @@ export function Dashboard() {
 
     activities.forEach(activity => {
       const date = activity.createdAt;
-      // Note: activity.createdAt is already a Date object from parseDate in firestore.ts
       const compareDate = new Date(date);
       compareDate.setHours(0, 0, 0, 0);
 
@@ -279,34 +278,37 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+      <div className="min-h-screen app-bg flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#2E8B8B]" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500">
+    <div className="min-h-screen app-bg">
       {/* Header */}
-      <header className="glass sticky top-0 z-10 border-b-0">
+      <header className="header-band sticky top-0 z-10 shadow-card">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/30">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
+              style={{ background: 'linear-gradient(135deg, #2E8B8B 0%, #3aacac 100%)' }}
+            >
               <Wallet className="w-5 h-5 text-white" />
             </div>
             <div>
               <h1 className="font-bold text-lg text-white tracking-tight">SocialTab</h1>
-              <p className="text-xs text-blue-100 font-medium">{currentUser?.displayName || currentUser?.email}</p>
+              <p className="text-xs text-white/70 font-medium">{currentUser?.displayName || currentUser?.email}</p>
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/export')} className="text-white hover:bg-white/20 hover:text-white transition-all hover:scale-105" title="Export Reports">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/export')} className="text-white/80 hover:bg-white/10 hover:text-white transition-all" title="Export Reports">
               <FileText className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/profile')} className="text-white hover:bg-white/20 hover:text-white transition-all hover:scale-105" title="Profile">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/profile')} className="text-white/80 hover:bg-white/10 hover:text-white transition-all" title="Profile">
               <UserCircle className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-white hover:bg-white/20 hover:text-white transition-all hover:scale-105" title="Logout">
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-white/80 hover:bg-white/10 hover:text-white transition-all" title="Logout">
               <LogOut className="w-5 h-5" />
             </Button>
           </div>
@@ -318,26 +320,28 @@ export function Dashboard() {
         {/* Search and Create */}
         <div className="flex gap-3 mb-6">
           <div className="relative flex-1 group">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-white/70 group-focus-within:text-white transition-colors" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9DAEC5] group-focus-within:text-[#2E8B8B] transition-colors" />
             <Input
               placeholder="Search groups..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:bg-white/20 transition-all hover:bg-white/15"
+              className="pl-10 rounded-xl border-[#D3DFEE] bg-white h-11 focus:border-[#2E8B8B] focus:ring-[#2E8B8B]/20 transition-all shadow-soft"
             />
           </div>
 
-
           <Dialog open={searchDialogOpen} onOpenChange={setSearchDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-white/90 text-purple-600 hover:bg-white font-semibold shadow-lg transition-all hover:scale-105 active:scale-95 border-0">
+              <Button
+                className="rounded-xl font-semibold shadow-soft transition-all hover:shadow-hover hover:-translate-y-0.5 active:translate-y-0 h-11 border-0"
+                style={{ background: 'linear-gradient(135deg, #2E8B8B 0%, #3aacac 100%)', color: '#fff' }}
+              >
                 <Search className="w-4 h-4 mr-2" />
-                Find Group
+                Find
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+            <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col rounded-2xl">
               <DialogHeader>
-                <DialogTitle>Find a Group</DialogTitle>
+                <DialogTitle className="text-[#1F3A5F]">Find a group</DialogTitle>
                 <DialogDescription>
                   Search for any public or private group by name or description.
                 </DialogDescription>
@@ -348,16 +352,21 @@ export function Dashboard() {
                     placeholder="Search query..."
                     value={globalSearchQuery}
                     onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                    className="flex-1"
+                    className="flex-1 rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B]"
                   />
-                  <Button type="submit" disabled={searching}>
+                  <Button
+                    type="submit"
+                    disabled={searching}
+                    className="rounded-xl"
+                    style={{ background: '#1F3A5F' }}
+                  >
                     {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
                   </Button>
                 </form>
 
                 <div className="flex-1 overflow-y-auto space-y-2 min-h-[200px]">
                   {searchResults.length === 0 && !searching && globalSearchQuery && (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-[#9DAEC5]">
                       No groups found matching "{globalSearchQuery}"
                     </div>
                   )}
@@ -368,7 +377,7 @@ export function Dashboard() {
                     return (
                       <Card
                         key={group.id}
-                        className="cursor-pointer hover:bg-gray-50 transition-colors border shadow-sm"
+                        className="cursor-pointer st-card hover:shadow-hover transition-all border border-[#E3EAF4]"
                         onClick={() => {
                           setSearchDialogOpen(false);
                           navigate(`/group/${group.id}`);
@@ -377,24 +386,24 @@ export function Dashboard() {
                         <CardContent className="p-4 flex items-center justify-between">
                           <div>
                             <div className="flex items-center gap-2">
-                              <h3 className="font-semibold">{group.name}</h3>
+                              <h3 className="font-semibold text-[#1F3A5F]">{group.name}</h3>
                               {group.isPublic ? (
-                                <Globe className="w-3 h-3 text-gray-400" />
+                                <Globe className="w-3 h-3 text-[#9DAEC5]" />
                               ) : (
-                                <Lock className="w-3 h-3 text-gray-400" />
+                                <Lock className="w-3 h-3 text-[#9DAEC5]" />
                               )}
                             </div>
-                            <p className="text-sm text-gray-500 line-clamp-1">{group.description}</p>
+                            <p className="text-sm text-[#6B7F99] line-clamp-1">{group.description}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="secondary" className="text-xs">
+                              <Badge variant="secondary" className="text-xs bg-[#1F3A5F]/8 text-[#1F3A5F]">
                                 <Users className="w-3 h-3 mr-1" />
                                 {group.members.length} members
                               </Badge>
-                              {isMember && <Badge variant="outline" className="text-xs border-green-500 text-green-600">Member</Badge>}
-                              {isPending && <Badge variant="outline" className="text-xs border-yellow-500 text-yellow-600">Pending</Badge>}
+                              {isMember && <Badge variant="outline" className="text-xs border-[#2E8B8B] text-[#2E8B8B]">Member</Badge>}
+                              {isPending && <Badge variant="outline" className="text-xs border-[#F4B860] text-[#c47e1f]">Pending</Badge>}
                             </div>
                           </div>
-                          <ArrowRight className="w-4 h-4 text-gray-400" />
+                          <ArrowRight className="w-4 h-4 text-[#9DAEC5]" />
                         </CardContent>
                       </Card>
                     );
@@ -406,14 +415,17 @@ export function Dashboard() {
 
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-white text-purple-600 hover:bg-white/90 font-semibold shadow-lg transition-all hover:scale-105 active:scale-95">
+              <Button
+                className="rounded-xl font-semibold shadow-soft transition-all hover:shadow-hover hover:-translate-y-0.5 active:translate-y-0 h-11 border-0"
+                style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2a4e7f 100%)', color: '#fff' }}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Create
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="rounded-2xl">
               <DialogHeader>
-                <DialogTitle>Create New Group</DialogTitle>
+                <DialogTitle className="text-[#1F3A5F]">Create new group</DialogTitle>
                 <DialogDescription>
                   Create a group to start tracking shared expenses
                 </DialogDescription>
@@ -421,28 +433,30 @@ export function Dashboard() {
               <form onSubmit={handleCreateGroup}>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Group Name</Label>
+                    <Label htmlFor="name" className="text-sm font-medium text-[#2B2B2B]">Group name</Label>
                     <Input
                       id="name"
                       placeholder="e.g., Weekend Trip"
                       value={newGroupName}
                       onChange={(e) => setNewGroupName(e.target.value)}
+                      className="rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B]"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
+                    <Label htmlFor="description" className="text-sm font-medium text-[#2B2B2B]">Description</Label>
                     <Input
                       id="description"
                       placeholder="What's this group for?"
                       value={newGroupDescription}
                       onChange={(e) => setNewGroupDescription(e.target.value)}
+                      className="rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B]"
                     />
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label htmlFor="public">Public Group</Label>
-                      <p className="text-sm text-gray-500">
+                      <Label htmlFor="public" className="text-sm font-medium text-[#2B2B2B]">Public group</Label>
+                      <p className="text-sm text-[#6B7F99]">
                         Anyone can find and request to join
                       </p>
                     </div>
@@ -454,8 +468,13 @@ export function Dashboard() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" disabled={creating} className="w-full">
-                    {creating ? 'Creating...' : 'Create Group'}
+                  <Button
+                    type="submit"
+                    disabled={creating}
+                    className="w-full rounded-xl font-semibold h-11"
+                    style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2a4e7f 100%)' }}
+                  >
+                    {creating ? 'Creating...' : 'Create group'}
                   </Button>
                 </DialogFooter>
               </form>
@@ -464,56 +483,61 @@ export function Dashboard() {
         </div>
 
         {/* Budget Card */}
-        <Card className="mb-6 glass-card border-0 overflow-hidden">
+        <Card className="mb-6 st-card overflow-hidden">
           <CardContent className="p-0">
-            <div className="p-5 border-b border-gray-100">
+            <div className="p-5 border-b border-[#E3EAF4]">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center shadow-inner">
-                    <DollarSign className="w-5 h-5 text-purple-600" />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#2E8B8B15' }}>
+                    <DollarSign className="w-5 h-5 text-[#2E8B8B]" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-900">Monthly Budget</h3>
-                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">
+                    <h3 className="font-bold text-[#1F3A5F]">Monthly budget</h3>
+                    <p className="text-xs text-[#9DAEC5] font-medium uppercase tracking-wider">
                       {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
                     </p>
                   </div>
                 </div>
                 <Dialog open={budgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="outline" className="text-xs font-semibold hover:bg-purple-50 hover:text-purple-600 border-purple-100 transition-colors">
+                    <Button size="sm" variant="outline" className="text-xs font-semibold hover:bg-[#2E8B8B]/5 hover:text-[#2E8B8B] border-[#D3DFEE] rounded-lg transition-colors">
                       <Target className="w-3.5 h-3.5 mr-1.5" />
-                      {budget ? 'Update' : 'Set Budget'}
+                      {budget ? 'Update' : 'Set budget'}
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-sm">
+                  <DialogContent className="max-w-sm rounded-2xl">
                     <DialogHeader>
-                      <DialogTitle className="text-xl">Monthly Budget</DialogTitle>
+                      <DialogTitle className="text-xl text-[#1F3A5F]">Monthly budget</DialogTitle>
                       <DialogDescription>
                         Set your spending limit for this month to stay on track with your financial goals.
                       </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSetBudget} className="space-y-6 pt-2">
                       <div className="space-y-2">
-                        <Label htmlFor="budget-input" className="text-sm font-semibold text-gray-700">Budget Amount ($)</Label>
+                        <Label htmlFor="budget-input" className="text-sm font-semibold text-[#2B2B2B]">Budget amount ($)</Label>
                         <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9DAEC5]" />
                           <Input
                             id="budget-input"
                             type="number"
                             step="0.01"
                             min="1"
                             placeholder="500.00"
-                            className="pl-9 h-11"
+                            className="pl-9 h-11 rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B]"
                             value={budgetInput}
                             onChange={(e) => setBudgetInput(e.target.value)}
                             required
                           />
                         </div>
                       </div>
-                      <Button type="submit" disabled={budgetLoading} className="w-full h-11 bg-purple-600 hover:bg-purple-700 font-bold shadow-md transition-all active:scale-95">
+                      <Button
+                        type="submit"
+                        disabled={budgetLoading}
+                        className="w-full h-11 font-bold rounded-xl shadow-soft transition-all active:scale-[0.98]"
+                        style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2a4e7f 100%)' }}
+                      >
                         {budgetLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                        {budget ? 'Update Budget' : 'Save Budget'}
+                        {budget ? 'Update budget' : 'Save budget'}
                       </Button>
                     </form>
                   </DialogContent>
@@ -523,59 +547,59 @@ export function Dashboard() {
               {budget !== null ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-3 gap-4">
-                    <div className="px-3 py-2 bg-gray-50 rounded-lg">
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Budget</p>
-                      <p className="text-sm font-bold text-gray-900">${budget.toFixed(2)}</p>
+                    <div className="stat-tile">
+                      <p className="text-[10px] text-[#9DAEC5] font-bold uppercase mb-0.5">Budget</p>
+                      <p className="text-sm font-bold text-[#1F3A5F]">${budget.toFixed(2)}</p>
                     </div>
-                    <div className="px-3 py-2 bg-gray-50 rounded-lg">
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Spent</p>
-                      <p className="text-sm font-bold text-purple-600">${totalSpent.toFixed(2)}</p>
+                    <div className="stat-tile">
+                      <p className="text-[10px] text-[#9DAEC5] font-bold uppercase mb-0.5">Spent</p>
+                      <p className="text-sm font-bold text-[#2E8B8B]">${totalSpent.toFixed(2)}</p>
                     </div>
-                    <div className="px-3 py-2 bg-gray-50 rounded-lg">
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Remaining</p>
-                      <p className={`text-sm font-bold ${remaining < 50 ? 'text-red-600' : 'text-green-600'}`}>${remaining.toFixed(2)}</p>
+                    <div className="stat-tile">
+                      <p className="text-[10px] text-[#9DAEC5] font-bold uppercase mb-0.5">Remaining</p>
+                      <p className={`text-sm font-bold ${remaining < 50 ? 'text-red-600' : 'text-[#2E8B8B]'}`}>${remaining.toFixed(2)}</p>
                     </div>
                   </div>
 
                   {/* Prediction Badge */}
-                  <div className={`p-3 rounded-lg border flex items-center justify-between ${isProjectedOverBudget ? 'bg-orange-50 border-orange-100' : 'bg-blue-50 border-blue-100'}`}>
+                  <div className={`p-3 rounded-xl border flex items-center justify-between ${isProjectedOverBudget ? 'bg-amber-50 border-amber-100' : 'bg-[#2E8B8B]/5 border-[#2E8B8B]/10'}`}>
                     <div className="flex items-center gap-2">
-                      <ActivityIcon className={`w-4 h-4 ${isProjectedOverBudget ? 'text-orange-500' : 'text-blue-500'}`} />
+                      <ActivityIcon className={`w-4 h-4 ${isProjectedOverBudget ? 'text-amber-500' : 'text-[#2E8B8B]'}`} />
                       <div>
-                        <p className={`text-xs font-bold ${isProjectedOverBudget ? 'text-orange-700' : 'text-blue-700'}`}>
-                          {isProjectedOverBudget ? 'Projected Overdraft' : 'On Track'}
+                        <p className={`text-xs font-bold ${isProjectedOverBudget ? 'text-amber-700' : 'text-[#1F3A5F]'}`}>
+                          {isProjectedOverBudget ? 'Projected overdraft' : 'On track'}
                         </p>
-                        <p className={`text-[10px] ${isProjectedOverBudget ? 'text-orange-600' : 'text-blue-600'}`}>
+                        <p className={`text-[10px] ${isProjectedOverBudget ? 'text-amber-600' : 'text-[#6B7F99]'}`}>
                           Est. end of month: <span className="font-bold">${projectedSpending.toFixed(2)}</span>
                         </p>
                       </div>
                     </div>
                     {isProjectedOverBudget && (
-                      <Badge variant="outline" className="bg-white text-orange-600 border-orange-200 text-[10px]">
-                        {projectedPercentage.toFixed(0)}% of Budget
+                      <Badge variant="outline" className="bg-white text-amber-600 border-amber-200 text-[10px]">
+                        {projectedPercentage.toFixed(0)}% of budget
                       </Badge>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden shadow-inner flex">
+                    <div className="h-2.5 bg-[#E3EAF4] rounded-full overflow-hidden flex">
                       <div
                         className={`h-full transition-all duration-700 ease-out rounded-full ${getBudgetBarColor(percentageUsed)}`}
                         style={{ width: `${Math.min(percentageUsed, 100)}%` }}
                       />
                     </div>
                     <div className="flex justify-between items-center">
-                      <p className="text-xs font-bold text-gray-500">
-                        {percentageUsed.toFixed(0)}% Utilized
+                      <p className="text-xs font-bold text-[#6B7F99]">
+                        {percentageUsed.toFixed(0)}% utilized
                       </p>
                       {percentageUsed > 90 && (
                         <div className="flex items-center gap-1.5 animate-pulse text-red-600">
                           <AlertTriangle className="w-3.5 h-3.5 font-black" />
-                          <span className="text-[10px] font-black uppercase">Critical Limit Reached!</span>
+                          <span className="text-[10px] font-black uppercase">Critical limit reached!</span>
                         </div>
                       )}
                       {percentageUsed >= 70 && percentageUsed <= 90 && (
-                        <div className="flex items-center gap-1.5 text-orange-500">
+                        <div className="flex items-center gap-1.5 text-amber-500">
                           <AlertTriangle className="w-3.5 h-3.5" />
                           <span className="text-[10px] font-bold uppercase tracking-tighter">Approaching threshold</span>
                         </div>
@@ -584,10 +608,10 @@ export function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="py-6 flex flex-col items-center justify-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                  <Target className="w-8 h-8 text-gray-300 mb-2" />
-                  <p className="text-sm text-gray-500 font-medium">No budget configured for this month</p>
-                  <Button variant="link" size="sm" onClick={() => setBudgetDialogOpen(true)} className="text-purple-600 font-bold mt-1 h-auto p-0">
+                <div className="py-6 flex flex-col items-center justify-center bg-[#F7F9FB] rounded-xl border border-dashed border-[#D3DFEE]">
+                  <Target className="w-8 h-8 text-[#D3DFEE] mb-2" />
+                  <p className="text-sm text-[#6B7F99] font-medium">No budget configured for this month</p>
+                  <Button variant="link" size="sm" onClick={() => setBudgetDialogOpen(true)} className="text-[#2E8B8B] font-bold mt-1 h-auto p-0">
                     Get started now →
                   </Button>
                 </div>
@@ -600,7 +624,7 @@ export function Dashboard() {
                   <AlertTriangle className="w-4 h-4 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-red-900 mb-0.5">Budget Alert</p>
+                  <p className="text-xs font-bold text-red-900 mb-0.5">Budget alert</p>
                   <p className="text-[11px] text-red-700 leading-tight">
                     You've consumed over 90% of your budget. Consider reviewing your upcoming expenses.
                   </p>
@@ -613,19 +637,37 @@ export function Dashboard() {
 
         {/* Tabs */}
         <Tabs defaultValue="my-groups" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4 bg-white/10 p-1 rounded-xl backdrop-blur-md border border-white/10">
-            <TabsTrigger value="my-groups" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white hover:bg-white/10">My Groups ({filteredMyGroups.length})</TabsTrigger>
-            <TabsTrigger value="discover" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white hover:bg-white/10">Discover ({filteredPublicGroups.length})</TabsTrigger>
-            <TabsTrigger value="activity" className="data-[state=active]:bg-white data-[state=active]:text-purple-600 text-white hover:bg-white/10">Activity</TabsTrigger>
+          <TabsList
+            className="grid w-full grid-cols-3 mb-4 p-1 rounded-xl border border-[#E3EAF4] shadow-soft"
+            style={{ background: '#F0F4FB' }}
+          >
+            <TabsTrigger
+              value="my-groups"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] font-medium text-sm transition-all"
+            >
+              My groups ({filteredMyGroups.length})
+            </TabsTrigger>
+            <TabsTrigger
+              value="discover"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] font-medium text-sm transition-all"
+            >
+              Discover ({filteredPublicGroups.length})
+            </TabsTrigger>
+            <TabsTrigger
+              value="activity"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] font-medium text-sm transition-all"
+            >
+              Activity
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="my-groups" className="space-y-3">
             {filteredMyGroups.length === 0 ? (
-              <Card className="border-dashed border-2 border-white/20 bg-white/10 backdrop-blur-sm shadow-none">
+              <Card className="border-dashed border-2 border-[#D3DFEE] bg-white shadow-none rounded-2xl">
                 <CardContent className="py-12 text-center">
-                  <Users className="w-12 h-12 text-white/50 mx-auto mb-4" />
-                  <p className="text-white font-medium mb-2">No groups yet</p>
-                  <p className="text-sm text-white/70">
+                  <Users className="w-12 h-12 text-[#D3DFEE] mx-auto mb-4" />
+                  <p className="text-[#1F3A5F] font-medium mb-2">No groups yet</p>
+                  <p className="text-sm text-[#6B7F99]">
                     Create a group or join one to get started
                   </p>
                 </CardContent>
@@ -634,36 +676,36 @@ export function Dashboard() {
               filteredMyGroups.map((group) => (
                 <Card
                   key={group.id}
-                  className="cursor-pointer glass-card border-0 group hover:-translate-y-1"
+                  className="cursor-pointer st-card group"
                   onClick={() => navigate(`/group/${group.id}`)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold">{group.name}</h3>
+                          <h3 className="font-semibold text-[#1F3A5F]">{group.name}</h3>
                           {group.isPublic ? (
-                            <Globe className="w-3 h-3 text-gray-400" />
+                            <Globe className="w-3 h-3 text-[#9DAEC5]" />
                           ) : (
-                            <Lock className="w-3 h-3 text-gray-400" />
+                            <Lock className="w-3 h-3 text-[#9DAEC5]" />
                           )}
                         </div>
-                        <p className="text-sm text-gray-500 line-clamp-1">
+                        <p className="text-sm text-[#6B7F99] line-clamp-1">
                           {group.description || 'No description'}
                         </p>
                         <div className="flex items-center gap-3 mt-3">
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-xs bg-[#1F3A5F]/8 text-[#1F3A5F]">
                             <Users className="w-3 h-3 mr-1" />
                             {group.members.length}
                           </Badge>
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-[#9DAEC5]">
                             {group.members.some((m) => m.uid === currentUser?.uid && m.role === 'admin')
                               ? 'Admin'
                               : 'Member'}
                           </span>
                         </div>
                       </div>
-                      <ArrowRight className="w-5 h-5 text-gray-400" />
+                      <ArrowRight className="w-5 h-5 text-[#D3DFEE] group-hover:text-[#2E8B8B] transition-colors" />
                     </div>
                   </CardContent>
                 </Card>
@@ -673,37 +715,37 @@ export function Dashboard() {
 
           <TabsContent value="discover" className="space-y-3">
             {filteredPublicGroups.length === 0 ? (
-              <Card className="border-dashed border-2 border-white/20 bg-white/10 backdrop-blur-sm shadow-none">
+              <Card className="border-dashed border-2 border-[#D3DFEE] bg-white shadow-none rounded-2xl">
                 <CardContent className="py-12 text-center">
-                  <Search className="w-12 h-12 text-white/50 mx-auto mb-4" />
-                  <p className="text-white/70">No public groups found</p>
+                  <Search className="w-12 h-12 text-[#D3DFEE] mx-auto mb-4" />
+                  <p className="text-[#6B7F99]">No public groups found</p>
                 </CardContent>
               </Card>
             ) : (
               filteredPublicGroups.map((group) => (
                 <Card
                   key={group.id}
-                  className="cursor-pointer glass-card border-0 group hover:-translate-y-1"
+                  className="cursor-pointer st-card group"
                   onClick={() => navigate(`/group/${group.id}`)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold">{group.name}</h3>
-                          <Globe className="w-3 h-3 text-gray-400" />
+                          <h3 className="font-semibold text-[#1F3A5F]">{group.name}</h3>
+                          <Globe className="w-3 h-3 text-[#9DAEC5]" />
                         </div>
-                        <p className="text-sm text-gray-500 line-clamp-1">
+                        <p className="text-sm text-[#6B7F99] line-clamp-1">
                           {group.description || 'No description'}
                         </p>
                         <div className="flex items-center gap-3 mt-3">
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-xs bg-[#1F3A5F]/8 text-[#1F3A5F]">
                             <Users className="w-3 h-3 mr-1" />
                             {group.members.length}
                           </Badge>
                         </div>
                       </div>
-                      <ArrowRight className="w-5 h-5 text-gray-400" />
+                      <ArrowRight className="w-5 h-5 text-[#D3DFEE] group-hover:text-[#2E8B8B] transition-colors" />
                     </div>
                   </CardContent>
                 </Card>
@@ -713,11 +755,11 @@ export function Dashboard() {
 
           <TabsContent value="activity" className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
             {recentActivity.length === 0 ? (
-              <Card className="border-dashed border-2 border-white/20 bg-white/10 backdrop-blur-sm shadow-none">
+              <Card className="border-dashed border-2 border-[#D3DFEE] bg-white shadow-none rounded-2xl">
                 <CardContent className="py-12 text-center">
-                  <ActivityIcon className="w-12 h-12 text-white/50 mx-auto mb-4" />
-                  <p className="text-white font-medium mb-2">No recent activity</p>
-                  <p className="text-sm text-white/70">
+                  <ActivityIcon className="w-12 h-12 text-[#D3DFEE] mx-auto mb-4" />
+                  <p className="text-[#1F3A5F] font-medium mb-2">No recent activity</p>
+                  <p className="text-sm text-[#6B7F99]">
                     Join groups and start tracking expenses to see updates here
                   </p>
                 </CardContent>
@@ -729,36 +771,52 @@ export function Dashboard() {
 
                 return (
                   <div key={section} className="space-y-2">
-                    <h3 className="text-sm font-medium text-white/80 sticky top-0 bg-gradient-to-r from-violet-500/90 to-purple-500/90 py-1 px-2 rounded backdrop-blur-sm z-10">
+                    <h3 className="text-xs font-semibold tracking-widest uppercase text-[#9DAEC5] sticky top-0 bg-[#F7F9FB]/90 py-1.5 px-2 rounded-lg backdrop-blur-sm z-10">
                       {section}
                     </h3>
                     {activities.map((activity) => (
-                      <Card key={activity.id} className="glass-card border-0 hover:translate-x-1 transition-transform">
+                      <Card key={activity.id} className="st-card hover:translate-x-1 transition-transform">
                         <CardContent className="p-3 flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3 overflow-hidden">
                             <div className="flex-shrink-0">
-                              {activity.type === 'expense' && <Receipt className="w-4 h-4 text-orange-500" />}
-                              {activity.type === 'settlement' && <ArrowRightLeft className="w-4 h-4 text-green-500" />}
-                              {activity.type === 'member_joined' && <UserPlus className="w-4 h-4 text-blue-500" />}
-                              {activity.type === 'group_created' && <Plus className="w-4 h-4 text-purple-500" />}
+                              {activity.type === 'expense' && (
+                                <div className="activity-icon bg-amber-50">
+                                  <Receipt className="w-4 h-4 text-[#F4B860]" />
+                                </div>
+                              )}
+                              {activity.type === 'settlement' && (
+                                <div className="activity-icon bg-[#2E8B8B]/10">
+                                  <ArrowRightLeft className="w-4 h-4 text-[#2E8B8B]" />
+                                </div>
+                              )}
+                              {activity.type === 'member_joined' && (
+                                <div className="activity-icon bg-[#1F3A5F]/8">
+                                  <UserPlus className="w-4 h-4 text-[#1F3A5F]" />
+                                </div>
+                              )}
+                              {activity.type === 'group_created' && (
+                                <div className="activity-icon bg-[#2E8B8B]/10">
+                                  <Plus className="w-4 h-4 text-[#2E8B8B]" />
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-baseline gap-2 overflow-hidden">
-                              <span className="font-semibold text-sm whitespace-nowrap">{activity.userName}</span>
-                              <span className="text-sm text-gray-700 truncate">{activity.description}</span>
+                              <span className="font-semibold text-sm text-[#1F3A5F] whitespace-nowrap">{activity.userName}</span>
+                              <span className="text-sm text-[#6B7F99] truncate">{activity.description}</span>
                               {activity.type !== 'group_created' && (
-                                <span className="text-xs text-gray-500 whitespace-nowrap hidden sm:inline">in {activity.groupName}</span>
+                                <span className="text-xs text-[#9DAEC5] whitespace-nowrap hidden sm:inline">in {activity.groupName}</span>
                               )}
                             </div>
                           </div>
 
                           <div className="flex items-center gap-3 flex-shrink-0">
-                            <span className="text-xs text-gray-400 whitespace-nowrap">
+                            <span className="text-xs text-[#9DAEC5] whitespace-nowrap">
                               {activity.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                              className="h-6 w-6 p-0 text-[#D3DFEE] hover:text-red-500"
                               onClick={() => handleDeleteActivity(activity.id)}
                             >
                               <Trash2 className="w-3 h-3" />
