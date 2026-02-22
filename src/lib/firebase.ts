@@ -52,7 +52,7 @@ class MockAuth {
 
   constructor() {
     // Check for existing session
-    const savedUser = localStorage.getItem('socialtab_currentUser');
+    const savedUser = localStorage.getItem('fairshare_currentUser');
     if (savedUser) {
       this.currentUser = JSON.parse(savedUser);
     }
@@ -71,7 +71,7 @@ class MockAuth {
   }
 
   async createUserWithEmailAndPassword(email: string, password: string) {
-    const users = JSON.parse(localStorage.getItem('socialtab_users') || '[]');
+    const users = JSON.parse(localStorage.getItem('fairshare_users') || '[]');
     const existingUser = users.find((u: any) => u.email === email);
     if (existingUser) {
       throw new Error('Email already in use');
@@ -85,17 +85,17 @@ class MockAuth {
     };
 
     users.push({ ...newUser, password });
-    localStorage.setItem('socialtab_users', JSON.stringify(users));
+    localStorage.setItem('fairshare_users', JSON.stringify(users));
 
     this.currentUser = newUser;
-    localStorage.setItem('socialtab_currentUser', JSON.stringify(newUser));
+    localStorage.setItem('fairshare_currentUser', JSON.stringify(newUser));
     this.notifyListeners();
 
     return { user: newUser };
   }
 
   async signInWithEmailAndPassword(email: string, password: string) {
-    const users = JSON.parse(localStorage.getItem('socialtab_users') || '[]');
+    const users = JSON.parse(localStorage.getItem('fairshare_users') || '[]');
     const user = users.find((u: any) => u.email === email && u.password === password);
 
     if (!user) {
@@ -104,7 +104,7 @@ class MockAuth {
 
     const { password: _, ...userWithoutPassword } = user;
     this.currentUser = userWithoutPassword;
-    localStorage.setItem('socialtab_currentUser', JSON.stringify(userWithoutPassword));
+    localStorage.setItem('fairshare_currentUser', JSON.stringify(userWithoutPassword));
     this.notifyListeners();
 
     return { user: userWithoutPassword };
@@ -120,7 +120,7 @@ class MockAuth {
     };
 
     this.currentUser = mockGoogleUser;
-    localStorage.setItem('socialtab_currentUser', JSON.stringify(mockGoogleUser));
+    localStorage.setItem('fairshare_currentUser', JSON.stringify(mockGoogleUser));
     this.notifyListeners();
 
     return { user: mockGoogleUser };
@@ -128,21 +128,21 @@ class MockAuth {
 
   async signOut() {
     this.currentUser = null;
-    localStorage.removeItem('socialtab_currentUser');
+    localStorage.removeItem('fairshare_currentUser');
     this.notifyListeners();
   }
 
   async updateProfile(user: MockUser, profile: { displayName?: string | null; photoURL?: string | null }) {
-    const users = JSON.parse(localStorage.getItem('socialtab_users') || '[]');
+    const users = JSON.parse(localStorage.getItem('fairshare_users') || '[]');
     const userIndex = users.findIndex((u: any) => u.uid === user.uid);
 
     if (userIndex !== -1) {
       users[userIndex] = { ...users[userIndex], ...profile };
-      localStorage.setItem('socialtab_users', JSON.stringify(users));
+      localStorage.setItem('fairshare_users', JSON.stringify(users));
     }
 
     this.currentUser = { ...user, ...profile };
-    localStorage.setItem('socialtab_currentUser', JSON.stringify(this.currentUser));
+    localStorage.setItem('fairshare_currentUser', JSON.stringify(this.currentUser));
     this.notifyListeners();
   }
 }
@@ -150,11 +150,11 @@ class MockAuth {
 // Mock Firestore
 class MockFirestore {
   private getCollection(collectionName: string) {
-    return JSON.parse(localStorage.getItem(`socialtab_${collectionName}`) || '[]');
+    return JSON.parse(localStorage.getItem(`fairshare_${collectionName}`) || '[]');
   }
 
   private setCollection(collectionName: string, data: any[]) {
-    localStorage.setItem(`socialtab_${collectionName}`, JSON.stringify(data));
+    localStorage.setItem(`fairshare_${collectionName}`, JSON.stringify(data));
   }
 
   collection(name: string) {

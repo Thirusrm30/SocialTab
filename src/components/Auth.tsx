@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,6 +44,7 @@ export function Auth() {
   const [showOtp, setShowOtp] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login, register, loginWithGoogle, sendOtp, verifyOtp } = useAuth();
+  const navigate = useNavigate();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -123,8 +125,10 @@ export function Auth() {
         {/* Brand */}
         <div className="text-center mb-8">
           <div
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl shadow-card mb-4"
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl shadow-card mb-4 cursor-pointer hover:opacity-90 transition-opacity"
             style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2E8B8B 100%)' }}
+            onClick={() => navigate('/profile')}
+            title="My Profile"
           >
             <Wallet className="w-8 h-8 text-white" />
           </div>
@@ -132,7 +136,7 @@ export function Auth() {
             className="text-3xl font-bold tracking-tight"
             style={{ color: '#1F3A5F' }}
           >
-            SocialTab
+            FairShare
           </h1>
           <p className="mt-2 text-sm" style={{ color: '#6B7F99' }}>
             The friendly way to split expenses with your people

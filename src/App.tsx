@@ -8,6 +8,7 @@ import { Profile } from '@/components/Profile';
 import { ExportReports } from '@/components/ExportReports';
 import { PaymentDashboard } from '@/components/PaymentDashboard';
 import { Friends } from '@/components/Friends';
+import { Reports } from '@/components/Reports';
 import { Toaster } from '@/components/ui/sonner';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -76,6 +77,14 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <PaymentDashboard />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/reports"
+        element={
+          <PrivateRoute>
+            <Reports />
           </PrivateRoute>
         }
       />

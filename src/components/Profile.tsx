@@ -131,15 +131,15 @@ export function Profile() {
     }
 
     async function handleRateApp() {
-        toast.success('Thank you for rating SocialTab! ⭐', {
+        toast.success('Thank you for rating FairShare! ⭐', {
             description: 'Your feedback helps us improve the app.',
         });
     }
 
     async function handleShareApp() {
         const shareData = {
-            title: 'SocialTab - Expense Sharing App',
-            text: 'Check out SocialTab — the easiest way to split expenses with friends and groups!',
+            title: 'FairShare - Expense Sharing App',
+            text: 'Check out FairShare — the easiest way to split expenses with friends and groups!',
             url: window.location.origin,
         };
 
@@ -380,7 +380,7 @@ export function Profile() {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-sm font-semibold text-[#2B2B2B]">Share app</p>
-                                    <p className="text-xs text-[#9DAEC5]">{linkCopied ? 'Link copied!' : 'Invite friends to SocialTab'}</p>
+                                    <p className="text-xs text-[#9DAEC5]">{linkCopied ? 'Link copied!' : 'Invite friends to FairShare'}</p>
                                 </div>
                                 <Copy className="w-4 h-4 text-[#D3DFEE]" />
                             </button>
@@ -405,7 +405,7 @@ export function Profile() {
 
                 {/* Version */}
                 <div className="text-center pt-2 pb-8">
-                    <p className="text-xs text-[#9DAEC5] font-medium">SocialTab v1.0.0</p>
+                    <p className="text-xs text-[#9DAEC5] font-medium">FairShare v1.0.0</p>
                 </div>
             </main>
 
@@ -463,7 +463,7 @@ export function Profile() {
                         <section>
                             <h4 className="font-bold text-[#1F3A5F] mb-1">1. Information we collect</h4>
                             <p>
-                                SocialTab collects your email address, display name, and expense data that you voluntarily enter.
+                                FairShare collects your email address, display name, and expense data that you voluntarily enter.
                                 We do not collect any personal data beyond what is necessary to provide the service.
                             </p>
                         </section>

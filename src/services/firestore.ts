@@ -529,6 +529,56 @@ export async function leaveGroup(groupId: string, member: GroupMember): Promise<
   });
 }
 
+/** Directly add a user as a member to a group (used for adding friends). */
+export async function addMemberToGroup(
+  groupId: string,
+  userId: string,
+  userEmail: string,
+  userName: string,
+  addedByName: string
+): Promise<void> {
+  const groupRef = doc(db, 'groups', groupId);
+  const groupSnap = await getDoc(groupRef);
+
+  if (!groupSnap.exists()) return;
+
+  const data = groupSnap.data();
+  const currentMembers = data.members || [];
+
+  // Prevent duplicate adds
+  if (currentMembers.some((m: any) => m.uid === userId)) {
+    return;
+  }
+
+  const newMember = {
+    uid: userId,
+    email: userEmail,
+    displayName: userName,
+    role: 'member' as const,
+    joinedAt: new Date().toISOString(),
+  };
+
+  await updateDoc(groupRef, {
+    members: [...currentMembers, newMember],
+  });
+
+  await logActivity(
+    groupId,
+    data.name,
+    'member_joined',
+    `was added to the group by ${addedByName}`,
+    userId,
+    userName
+  );
+
+  await addNotification(
+    userId,
+    'group_invite',
+    `${addedByName} added you to "${data.name}".`,
+    `/group/${groupId}`
+  );
+}
+
 // Expense Services
 export async function addExpense(
   groupId: string,

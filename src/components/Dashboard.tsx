@@ -32,6 +32,7 @@ import {
   AlertTriangle,
   FileText,
   UserCircle,
+  TrendingUp,
 } from 'lucide-react';
 
 export function Dashboard() {
@@ -292,23 +293,28 @@ export function Dashboard() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg cursor-pointer hover:opacity-90 transition-opacity"
               style={{ background: 'linear-gradient(135deg, #2E8B8B 0%, #3aacac 100%)' }}
+              onClick={() => navigate('/profile')}
+              title="My Profile"
             >
               <Wallet className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-lg text-white tracking-tight">SocialTab</h1>
-              <p className="text-xs text-white/70 font-medium">{currentUser?.displayName || currentUser?.email}</p>
+              <h1 className="font-bold text-lg text-white tracking-tight">FairShare</h1>
+              <p className="text-xs text-white/70 font-medium truncate max-w-[120px] sm:max-w-xs">{currentUser?.displayName || currentUser?.email}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             <NotificationsPopover />
             <Button variant="ghost" size="icon" onClick={() => navigate('/friends')} className="text-white/80 hover:bg-white/10 hover:text-white transition-all" title="Friends">
               <Users className="w-5 h-5" />
             </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate('/export')} className="text-white/80 hover:bg-white/10 hover:text-white transition-all" title="Export Reports">
               <FileText className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/reports')} className="text-white/80 hover:bg-white/10 hover:text-white transition-all" title="Reports">
+              <TrendingUp className="w-5 h-5" />
             </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate('/profile')} className="text-white/80 hover:bg-white/10 hover:text-white transition-all" title="Profile">
               <UserCircle className="w-5 h-5" />
@@ -323,7 +329,7 @@ export function Dashboard() {
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         {/* Search and Create */}
-        <div className="flex gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <div className="relative flex-1 group">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9DAEC5] group-focus-within:text-[#2E8B8B] transition-colors" />
             <Input
@@ -334,164 +340,166 @@ export function Dashboard() {
             />
           </div>
 
-          <Dialog open={searchDialogOpen} onOpenChange={setSearchDialogOpen}>
-            <DialogTrigger asChild>
-              <Button
-                className="rounded-xl font-semibold shadow-soft transition-all hover:shadow-hover hover:-translate-y-0.5 active:translate-y-0 h-11 border-0"
-                style={{ background: 'linear-gradient(135deg, #2E8B8B 0%, #3aacac 100%)', color: '#fff' }}
-              >
-                <Search className="w-4 h-4 mr-2" />
-                Find
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col rounded-2xl">
-              <DialogHeader>
-                <DialogTitle className="text-[#1F3A5F]">Find a group</DialogTitle>
-                <DialogDescription>
-                  Search for any public or private group by name or description.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-hidden flex flex-col gap-4 py-4">
-                <form onSubmit={handleGlobalSearch} className="flex gap-2">
-                  <Input
-                    placeholder="Search query..."
-                    value={globalSearchQuery}
-                    onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                    className="flex-1 rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B]"
-                  />
-                  <Button
-                    type="submit"
-                    disabled={searching}
-                    className="rounded-xl"
-                    style={{ background: '#1F3A5F' }}
-                  >
-                    {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
-                  </Button>
+          <div className="flex gap-3 w-full sm:w-auto">
+            <Dialog open={searchDialogOpen} onOpenChange={setSearchDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  className="flex-1 sm:flex-none rounded-xl font-semibold shadow-soft transition-all hover:shadow-hover hover:-translate-y-0.5 active:translate-y-0 h-11 border-0"
+                  style={{ background: 'linear-gradient(135deg, #2E8B8B 0%, #3aacac 100%)', color: '#fff' }}
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  Find
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col rounded-2xl">
+                <DialogHeader>
+                  <DialogTitle className="text-[#1F3A5F]">Find a group</DialogTitle>
+                  <DialogDescription>
+                    Search for any public or private group by name or description.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex-1 overflow-hidden flex flex-col gap-4 py-4">
+                  <form onSubmit={handleGlobalSearch} className="flex gap-2">
+                    <Input
+                      placeholder="Search query..."
+                      value={globalSearchQuery}
+                      onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                      className="flex-1 rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B]"
+                    />
+                    <Button
+                      type="submit"
+                      disabled={searching}
+                      className="rounded-xl"
+                      style={{ background: '#1F3A5F' }}
+                    >
+                      {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+                    </Button>
+                  </form>
+
+                  <div className="flex-1 overflow-y-auto space-y-2 min-h-[200px]">
+                    {searchResults.length === 0 && !searching && globalSearchQuery && (
+                      <div className="text-center py-8 text-[#9DAEC5]">
+                        No groups found matching "{globalSearchQuery}"
+                      </div>
+                    )}
+                    {searchResults.map((group) => {
+                      const isMember = group.members.some(m => m.uid === currentUser?.uid);
+                      const isPending = group.joinRequests?.some(r => r.uid === currentUser?.uid);
+
+                      return (
+                        <Card
+                          key={group.id}
+                          className="cursor-pointer st-card hover:shadow-hover transition-all border border-[#E3EAF4]"
+                          onClick={() => {
+                            setSearchDialogOpen(false);
+                            navigate(`/group/${group.id}`);
+                          }}
+                        >
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-[#1F3A5F]">{group.name}</h3>
+                                {group.isPublic ? (
+                                  <Globe className="w-3 h-3 text-[#9DAEC5]" />
+                                ) : (
+                                  <Lock className="w-3 h-3 text-[#9DAEC5]" />
+                                )}
+                              </div>
+                              <p className="text-sm text-[#6B7F99] line-clamp-1">{group.description}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="secondary" className="text-xs bg-[#1F3A5F]/8 text-[#1F3A5F]">
+                                  <Users className="w-3 h-3 mr-1" />
+                                  {group.members.length} members
+                                </Badge>
+                                {isMember && <Badge variant="outline" className="text-xs border-[#2E8B8B] text-[#2E8B8B]">Member</Badge>}
+                                {isPending && <Badge variant="outline" className="text-xs border-[#F4B860] text-[#c47e1f]">Pending</Badge>}
+                              </div>
+                            </div>
+                            <ArrowRight className="w-4 h-4 text-[#9DAEC5]" />
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  className="flex-1 sm:flex-none rounded-xl font-semibold shadow-soft transition-all hover:shadow-hover hover:-translate-y-0.5 active:translate-y-0 h-11 border-0"
+                  style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2a4e7f 100%)', color: '#fff' }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="rounded-2xl">
+                <DialogHeader>
+                  <DialogTitle className="text-[#1F3A5F]">Create new group</DialogTitle>
+                  <DialogDescription>
+                    Create a group to start tracking shared expenses
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreateGroup}>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name" className="text-sm font-medium text-[#2B2B2B]">Group name</Label>
+                      <Input
+                        id="name"
+                        placeholder="e.g., Weekend Trip"
+                        value={newGroupName}
+                        onChange={(e) => setNewGroupName(e.target.value)}
+                        className="rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B]"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description" className="text-sm font-medium text-[#2B2B2B]">Description</Label>
+                      <Input
+                        id="description"
+                        placeholder="What's this group for?"
+                        value={newGroupDescription}
+                        onChange={(e) => setNewGroupDescription(e.target.value)}
+                        className="rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B]"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="public" className="text-sm font-medium text-[#2B2B2B]">Public group</Label>
+                        <p className="text-sm text-[#6B7F99]">
+                          Anyone can find and request to join
+                        </p>
+                      </div>
+                      <Switch
+                        id="public"
+                        checked={isPublic}
+                        onCheckedChange={setIsPublic}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      type="submit"
+                      disabled={creating}
+                      className="w-full rounded-xl font-semibold h-11"
+                      style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2a4e7f 100%)' }}
+                    >
+                      {creating ? 'Creating...' : 'Create group'}
+                    </Button>
+                  </DialogFooter>
                 </form>
-
-                <div className="flex-1 overflow-y-auto space-y-2 min-h-[200px]">
-                  {searchResults.length === 0 && !searching && globalSearchQuery && (
-                    <div className="text-center py-8 text-[#9DAEC5]">
-                      No groups found matching "{globalSearchQuery}"
-                    </div>
-                  )}
-                  {searchResults.map((group) => {
-                    const isMember = group.members.some(m => m.uid === currentUser?.uid);
-                    const isPending = group.joinRequests?.some(r => r.uid === currentUser?.uid);
-
-                    return (
-                      <Card
-                        key={group.id}
-                        className="cursor-pointer st-card hover:shadow-hover transition-all border border-[#E3EAF4]"
-                        onClick={() => {
-                          setSearchDialogOpen(false);
-                          navigate(`/group/${group.id}`);
-                        }}
-                      >
-                        <CardContent className="p-4 flex items-center justify-between">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-[#1F3A5F]">{group.name}</h3>
-                              {group.isPublic ? (
-                                <Globe className="w-3 h-3 text-[#9DAEC5]" />
-                              ) : (
-                                <Lock className="w-3 h-3 text-[#9DAEC5]" />
-                              )}
-                            </div>
-                            <p className="text-sm text-[#6B7F99] line-clamp-1">{group.description}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="secondary" className="text-xs bg-[#1F3A5F]/8 text-[#1F3A5F]">
-                                <Users className="w-3 h-3 mr-1" />
-                                {group.members.length} members
-                              </Badge>
-                              {isMember && <Badge variant="outline" className="text-xs border-[#2E8B8B] text-[#2E8B8B]">Member</Badge>}
-                              {isPending && <Badge variant="outline" className="text-xs border-[#F4B860] text-[#c47e1f]">Pending</Badge>}
-                            </div>
-                          </div>
-                          <ArrowRight className="w-4 h-4 text-[#9DAEC5]" />
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button
-                className="rounded-xl font-semibold shadow-soft transition-all hover:shadow-hover hover:-translate-y-0.5 active:translate-y-0 h-11 border-0"
-                style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2a4e7f 100%)', color: '#fff' }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="rounded-2xl">
-              <DialogHeader>
-                <DialogTitle className="text-[#1F3A5F]">Create new group</DialogTitle>
-                <DialogDescription>
-                  Create a group to start tracking shared expenses
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreateGroup}>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name" className="text-sm font-medium text-[#2B2B2B]">Group name</Label>
-                    <Input
-                      id="name"
-                      placeholder="e.g., Weekend Trip"
-                      value={newGroupName}
-                      onChange={(e) => setNewGroupName(e.target.value)}
-                      className="rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B]"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description" className="text-sm font-medium text-[#2B2B2B]">Description</Label>
-                    <Input
-                      id="description"
-                      placeholder="What's this group for?"
-                      value={newGroupDescription}
-                      onChange={(e) => setNewGroupDescription(e.target.value)}
-                      className="rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B]"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="public" className="text-sm font-medium text-[#2B2B2B]">Public group</Label>
-                      <p className="text-sm text-[#6B7F99]">
-                        Anyone can find and request to join
-                      </p>
-                    </div>
-                    <Switch
-                      id="public"
-                      checked={isPublic}
-                      onCheckedChange={setIsPublic}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    type="submit"
-                    disabled={creating}
-                    className="w-full rounded-xl font-semibold h-11"
-                    style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2a4e7f 100%)' }}
-                  >
-                    {creating ? 'Creating...' : 'Create group'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Budget Card */}
         <Card className="mb-6 st-card overflow-hidden">
           <CardContent className="p-0">
-            <div className="p-5 border-b border-[#E3EAF4]">
-              <div className="flex items-center justify-between mb-4">
+            <div className="p-4 sm:p-5 border-b border-[#E3EAF4]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#2E8B8B15' }}>
                     <DollarSign className="w-5 h-5 text-[#2E8B8B]" />
@@ -505,7 +513,7 @@ export function Dashboard() {
                 </div>
                 <Dialog open={budgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="outline" className="text-xs font-semibold hover:bg-[#2E8B8B]/5 hover:text-[#2E8B8B] border-[#D3DFEE] rounded-lg transition-colors">
+                    <Button size="sm" variant="outline" className="w-full sm:w-auto text-xs font-semibold hover:bg-[#2E8B8B]/5 hover:text-[#2E8B8B] border-[#D3DFEE] rounded-lg transition-colors">
                       <Target className="w-3.5 h-3.5 mr-1.5" />
                       {budget ? 'Update' : 'Set budget'}
                     </Button>
@@ -551,7 +559,7 @@ export function Dashboard() {
 
               {budget !== null ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4">
                     <div className="stat-tile">
                       <p className="text-[10px] text-[#9DAEC5] font-bold uppercase mb-0.5">Budget</p>
                       <p className="text-sm font-bold text-[#1F3A5F]">${budget.toFixed(2)}</p>
@@ -648,19 +656,19 @@ export function Dashboard() {
           >
             <TabsTrigger
               value="my-groups"
-              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] font-medium text-sm transition-all"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] font-medium text-[11px] sm:text-sm transition-all"
             >
               My groups ({filteredMyGroups.length})
             </TabsTrigger>
             <TabsTrigger
               value="discover"
-              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] font-medium text-sm transition-all"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] font-medium text-[11px] sm:text-sm transition-all"
             >
               Discover ({filteredPublicGroups.length})
             </TabsTrigger>
             <TabsTrigger
               value="activity"
-              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] font-medium text-sm transition-all"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] font-medium text-[11px] sm:text-sm transition-all"
             >
               Activity
             </TabsTrigger>

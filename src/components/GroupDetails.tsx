@@ -27,8 +27,13 @@ import {
   getUserBudget,
   getUserTotalExpenses,
   getGroupPayments,
+  getFriends,
+  addMemberToGroup,
 } from '@/services/firestore';
 import type { Group, Expense, Settlement, JoinRequest, Payment } from '@/types';
+import { toast } from 'sonner';
+import { exportGroupCSV, exportGroupPDF, exportExpensePDF } from '@/lib/exportUtils';
+import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   ArrowLeft,
   Plus,
@@ -59,6 +64,9 @@ import {
   MicOff,
   Image as ImageIcon,
   MapPin,
+  Download,
+  FileSpreadsheet,
+  FileText,
 } from 'lucide-react';
 import { createWorker } from 'tesseract.js';
 import { NotificationsPopover } from '@/components/NotificationsPopover';
@@ -101,6 +109,7 @@ export function GroupDetails() {
   const { groupId } = useParams<{ groupId: string }>();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const { formatDate } = usePreferences();
 
   const [group, setGroup] = useState<Group | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -111,6 +120,12 @@ export function GroupDetails() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Friends state
+  const [friends, setFriends] = useState<any[]>([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [addingFriendId, setAddingFriendId] = useState<string | null>(null);
+  const [showFriendPicker, setShowFriendPicker] = useState(false);
 
   // Expense dialog state
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
@@ -292,16 +307,39 @@ export function GroupDetails() {
     }
   };
 
+  // Load friends list
+  useEffect(() => {
+    if (currentUser) {
+      loadFriends();
+    }
+  }, [currentUser]);
+
+  async function loadFriends() {
+    if (!currentUser) return;
+    setFriendsLoading(true);
+    try {
+      const f = await getFriends(currentUser.uid);
+      setFriends(f);
+    } catch (err) {
+      console.error('Error loading friends:', err);
+    } finally {
+      setFriendsLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (groupId) {
-      loadGroupData();
+      loadGroupData(true);
     }
   }, [groupId, currentUser]);
 
-  async function loadGroupData() {
+  async function loadGroupData(isInitial = false) {
     if (!groupId || !currentUser) return;
 
-    setLoading(true);
+    // Only show full-page spinner on the very first load
+    if (isInitial) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const [groupData, groupExpenses, groupSettlements, groupPayments] = await Promise.all([
@@ -328,9 +366,11 @@ export function GroupDetails() {
       setPayments(groupPayments);
     } catch (err: any) {
       console.error('Error loading group data:', err);
-      setError(err.message || "Failed to load group data. Please checking your connection and try again.");
+      setError(err.message || "Failed to load group data. Please check your connection and try again.");
     } finally {
-      setLoading(false);
+      if (isInitial) {
+        setLoading(false);
+      }
     }
   }
 
@@ -377,9 +417,12 @@ export function GroupDetails() {
       setExpenseAmount('');
       setExpenseCategory('other');
       setSelectedMembers([]);
+      setShowFriendPicker(false);
+      toast.success('Expense added successfully!');
       loadGroupData();
     } catch (error) {
       console.error('Error adding expense:', error);
+      toast.error('Failed to add expense. Please try again.');
     } finally {
       setAddingExpense(false);
     }
@@ -480,6 +523,41 @@ export function GroupDetails() {
       setLoading(false);
     }
   }
+
+  // Add a friend directly to the group
+  async function handleAddFriendToGroup(friend: any) {
+    if (!groupId || !currentUser || !group) return;
+
+    // Check if already a member
+    if (group.members.some(m => m.uid === (friend.uid || friend.id))) {
+      toast.info(`${friend.displayName} is already a member of this group.`);
+      return;
+    }
+
+    const friendUid = friend.uid || friend.id;
+    setAddingFriendId(friendUid);
+    try {
+      await addMemberToGroup(
+        groupId,
+        friendUid,
+        friend.email || '',
+        friend.displayName || 'Friend',
+        currentUser.displayName || 'Someone'
+      );
+      toast.success(`${friend.displayName} added to the group!`);
+      await loadGroupData();
+    } catch (err) {
+      console.error('Error adding friend to group:', err);
+      toast.error('Failed to add friend to group.');
+    } finally {
+      setAddingFriendId(null);
+    }
+  }
+
+  // Friends not already in the group
+  const friendsNotInGroup = friends.filter(
+    (f) => !group?.members.some((m) => m.uid === (f.uid || f.id))
+  );
 
   const balances = group ? calculateBalances(expenses, settlements, group.members, payments) : new Map();
   const debts = getSimplifiedDebts(balances);
@@ -658,36 +736,36 @@ export function GroupDetails() {
       <main className="max-w-4xl mx-auto px-4 py-6">
         <Tabs defaultValue="expenses" className="w-full">
           <TabsList
-            className="grid w-full grid-cols-5 mb-4 p-1 rounded-xl border border-[#E3EAF4] shadow-soft"
+            className="flex overflow-x-auto sm:grid w-full sm:grid-cols-5 mb-4 p-1 rounded-xl border border-[#E3EAF4] shadow-soft no-scrollbar"
             style={{ background: '#F0F4FB' }}
           >
             <TabsTrigger
               value="expenses"
-              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all whitespace-nowrap min-w-fit px-4 mx-0.5 sm:px-1 sm:mx-0 sm:min-w-0"
             >
               Expenses
             </TabsTrigger>
             <TabsTrigger
               value="analytics"
-              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all whitespace-nowrap min-w-fit px-4 mx-0.5 sm:px-1 sm:mx-0 sm:min-w-0"
             >
               Analytics
             </TabsTrigger>
             <TabsTrigger
               value="balances"
-              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all whitespace-nowrap min-w-fit px-4 mx-0.5 sm:px-1 sm:mx-0 sm:min-w-0"
             >
               Balances
             </TabsTrigger>
             <TabsTrigger
               value="members"
-              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all whitespace-nowrap min-w-fit px-4 mx-0.5 sm:px-1 sm:mx-0 sm:min-w-0"
             >
               Members
             </TabsTrigger>
             <TabsTrigger
               value="history"
-              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all"
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] text-xs sm:text-sm font-medium transition-all whitespace-nowrap min-w-fit px-4 mx-0.5 sm:px-1 sm:mx-0 sm:min-w-0"
             >
               History
             </TabsTrigger>
@@ -695,9 +773,44 @@ export function GroupDetails() {
 
           {/* Expenses Tab */}
           <TabsContent value="expenses" className="space-y-4">
-            <div className="flex justify-between items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
               <h2 className="text-lg font-bold text-[#1F3A5F]">Expenses</h2>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2">
+                {/* Group Export Buttons */}
+                {expenses.length > 0 && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        exportGroupCSV(group, expenses, payments, {
+                          userName: currentUser?.displayName || 'User',
+                          formatDate,
+                        });
+                        toast.success('Group CSV exported!');
+                      }}
+                      className="rounded-lg border-[#D3DFEE] text-[#2E8B8B] hover:bg-[#2E8B8B]/5 text-xs font-semibold"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 mr-1" />
+                      CSV
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        exportGroupPDF(group, expenses, payments, {
+                          userName: currentUser?.displayName || 'User',
+                          formatDate,
+                        });
+                        toast.success('Group PDF exported!');
+                      }}
+                      className="rounded-lg border-[#D3DFEE] text-[#1F3A5F] hover:bg-[#1F3A5F]/5 text-xs font-semibold"
+                    >
+                      <FileText className="w-3.5 h-3.5 mr-1" />
+                      PDF
+                    </Button>
+                  </>
+                )}
                 {isAdmin && (
                   <Button
                     size="sm"
@@ -709,7 +822,17 @@ export function GroupDetails() {
                     Delete group
                   </Button>
                 )}
-                <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
+                <Dialog open={expenseDialogOpen} onOpenChange={(open) => {
+                  setExpenseDialogOpen(open);
+                  if (!open) {
+                    // Reset all form state when dialog closes
+                    setShowFriendPicker(false);
+                    setExpenseDescription('');
+                    setExpenseAmount('');
+                    setExpenseCategory('other');
+                    setSelectedMembers([]);
+                  }
+                }}>
                   <DialogTrigger asChild>
                     <Button
                       size="sm"
@@ -840,6 +963,68 @@ export function GroupDetails() {
                               </div>
                             ))}
                           </div>
+
+                          {/* Quick Add Friends Section */}
+                          {friendsNotInGroup.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-[#E3EAF4]">
+                              <button
+                                type="button"
+                                onClick={() => setShowFriendPicker(!showFriendPicker)}
+                                className="flex items-center gap-2 text-xs font-semibold text-[#2E8B8B] hover:text-[#2E8B8B]/80 transition-colors w-full"
+                              >
+                                <UserPlus className="w-3.5 h-3.5" />
+                                {showFriendPicker ? 'Hide friends' : `Quick add friends (${friendsNotInGroup.length})`}
+                              </button>
+                              {showFriendPicker && (
+                                <div className="mt-2 space-y-1.5 max-h-32 overflow-y-auto">
+                                  {friendsNotInGroup.map((friend) => {
+                                    const friendUid = friend.uid || friend.id;
+                                    const isAdding = addingFriendId === friendUid;
+                                    return (
+                                      <div
+                                        key={friendUid}
+                                        className="flex items-center justify-between p-2 rounded-lg bg-[#F7F9FB] border border-[#E3EAF4] hover:border-[#2E8B8B]/30 transition-colors"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-7 h-7 rounded-full bg-[#2E8B8B]/10 flex items-center justify-center">
+                                            <span className="text-xs font-bold text-[#2E8B8B]">{friend.displayName?.charAt(0) || 'F'}</span>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs font-semibold text-[#1F3A5F]">{friend.displayName}</p>
+                                            <p className="text-[10px] text-[#9DAEC5]">{friend.email}</p>
+                                          </div>
+                                        </div>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-7 px-2 text-xs font-semibold text-[#2E8B8B] hover:bg-[#2E8B8B]/10"
+                                          disabled={isAdding}
+                                          onClick={async () => {
+                                            await handleAddFriendToGroup(friend);
+                                            // Auto-select them in the split after adding
+                                            const uid = friend.uid || friend.id;
+                                            if (!selectedMembers.includes(uid)) {
+                                              setSelectedMembers(prev => [...prev, uid]);
+                                            }
+                                          }}
+                                        >
+                                          {isAdding ? (
+                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                          ) : (
+                                            <>
+                                              <Plus className="w-3 h-3 mr-1" />
+                                              Add & Split
+                                            </>
+                                          )}
+                                        </Button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <DialogFooter>
@@ -871,20 +1056,20 @@ export function GroupDetails() {
                 {expenses.map((expense) => (
                   <Card key={expense.id} className="st-card">
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          {getCategoryIcon(expense.category)}
-                          <div>
-                            <p className="font-semibold text-[#1F3A5F]">{expense.description}</p>
-                            <p className="text-sm text-[#6B7F99]">
+                      <div className="flex items-start gap-2 justify-between">
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="flex-shrink-0 mt-0.5">{getCategoryIcon(expense.category)}</div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-[#1F3A5F] truncate max-w-[180px] sm:max-w-none">{expense.description}</p>
+                            <p className="text-xs sm:text-sm text-[#6B7F99] truncate">
                               Paid by {expense.paidByName} · {expense.createdAt.toLocaleDateString()}
                             </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <p className="text-xs text-[#9DAEC5]">
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              <p className="text-xs text-[#9DAEC5] whitespace-nowrap">
                                 Split among {expense.splitAmong.length} people
                               </p>
                               {expense.location && (
-                                <Badge variant="outline" className="text-[10px] text-[#2E8B8B] border-[#2E8B8B] bg-[#2E8B8B]/5">
+                                <Badge variant="outline" className="text-[10px] text-[#2E8B8B] border-[#2E8B8B] bg-[#2E8B8B]/5 whitespace-nowrap">
                                   <MapPin className="w-3 h-3 mr-1" />
                                   {expense.location.city ? `${expense.location.city}, ${expense.location.country}` : 'Location tracked'}
                                 </Badge>
@@ -892,18 +1077,36 @@ export function GroupDetails() {
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-bold text-lg text-[#1F3A5F]">{formatCurrency(expense.amount)}</p>
-                          {expense.paidBy === currentUser?.uid && (
+                        <div className="text-right flex-shrink-0 ml-2">
+                          <p className="font-bold text-base sm:text-lg text-[#1F3A5F]">{formatCurrency(expense.amount)}</p>
+                          <div className="flex items-center justify-end gap-1 mt-1">
+                            {expense.paidBy === currentUser?.uid && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-400 hover:text-red-600 h-7 w-7 p-0"
+                                onClick={() => handleDeleteExpense(expense.id)}
+                                title="Delete expense"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-red-400 hover:text-red-600 h-8 mt-1"
-                              onClick={() => handleDeleteExpense(expense.id)}
+                              className="text-[#9DAEC5] hover:text-[#2E8B8B] h-7 w-7 p-0"
+                              onClick={() => {
+                                exportExpensePDF(expense, group, payments, {
+                                  userName: currentUser?.displayName || 'User',
+                                  formatDate,
+                                });
+                                toast.success('Expense PDF exported!');
+                              }}
+                              title="Export expense as PDF"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Download className="w-3.5 h-3.5" />
                             </Button>
-                          )}
+                          </div>
                         </div>
                       </div>
 
@@ -1057,20 +1260,20 @@ export function GroupDetails() {
                   return (
                     <Card key={index} className={`${isCurrentUserDebt ? 'border-amber-200 bg-amber-50/80' : 'st-card'} rounded-2xl shadow-soft`}>
                       <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-[#1F3A5F]">{fromMember?.displayName}</span>
-                            <span className="text-[#9DAEC5]">owes</span>
-                            <span className="font-semibold text-[#1F3A5F]">{toMember?.displayName}</span>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+                          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                            <span className="font-semibold text-[#1F3A5F] truncate max-w-[120px] sm:max-w-none">{fromMember?.displayName}</span>
+                            <span className="text-sm text-[#9DAEC5] whitespace-nowrap">owes</span>
+                            <span className="font-semibold text-[#1F3A5F] truncate max-w-[120px] sm:max-w-none">{toMember?.displayName}</span>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t border-[#E3EAF4] sm:border-0 w-full sm:w-auto">
                             <span className="font-bold text-lg text-[#1F3A5F]">{formatCurrency(debt.amount)}</span>
                             {debt.from === currentUser?.uid && (
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleSettle(debt.from, debt.to, debt.amount)}
-                                className="rounded-lg border-[#2E8B8B] text-[#2E8B8B] hover:bg-[#2E8B8B]/5"
+                                className="rounded-lg border-[#2E8B8B] text-[#2E8B8B] hover:bg-[#2E8B8B]/5 whitespace-nowrap"
                               >
                                 <Check className="w-4 h-4 mr-1" />
                                 Settle
@@ -1095,8 +1298,8 @@ export function GroupDetails() {
                   {group.members.map((member) => {
                     const balance = balances.get(member.uid) || 0;
                     return (
-                      <div key={member.uid} className="flex justify-between items-center">
-                        <span className="text-sm text-[#2B2B2B]">{member.displayName}</span>
+                      <div key={member.uid} className="flex justify-between items-center py-0.5 gap-2">
+                        <span className="text-sm text-[#2B2B2B] truncate flex-1">{member.displayName}</span>
                         <span
                           className={`text-sm font-bold ${balance > 0 ? 'text-[#2E8B8B]' : balance < 0 ? 'text-red-500' : 'text-[#9DAEC5]'
                             }`}
@@ -1122,25 +1325,25 @@ export function GroupDetails() {
               <CardContent className="p-0">
                 {group.members.map((member, index) => (
                   <div key={member.uid}>
-                    <div className="p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                    <div className="p-4 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-medium shadow-soft"
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-medium shadow-soft flex-shrink-0"
                           style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2E8B8B 100%)' }}
                         >
                           {member.displayName.charAt(0).toUpperCase()}
                         </div>
-                        <div>
-                          <p className="font-semibold text-[#1F3A5F]">
+                        <div className="min-w-0 pr-2">
+                          <p className="font-semibold text-[#1F3A5F] truncate">
                             {member.displayName}
                             {member.uid === currentUser?.uid && ' (You)'}
                           </p>
-                          <p className="text-sm text-[#9DAEC5]">{member.email}</p>
+                          <p className="text-sm text-[#9DAEC5] truncate">{member.email}</p>
                         </div>
                       </div>
                       <Badge
                         variant={member.role === 'admin' ? 'default' : 'secondary'}
-                        className={member.role === 'admin' ? 'bg-[#1F3A5F] text-white' : 'bg-[#E3EAF4] text-[#6B7F99]'}
+                        className={member.role === 'admin' ? 'bg-[#1F3A5F] text-white flex-shrink-0' : 'bg-[#E3EAF4] text-[#6B7F99] flex-shrink-0'}
                       >
                         {member.role}
                       </Badge>
@@ -1150,6 +1353,82 @@ export function GroupDetails() {
                 ))}
               </CardContent>
             </Card>
+
+            {/* Add Friends to Group */}
+            {friendsNotInGroup.length > 0 && (
+              <Card className="st-card overflow-hidden border-[#2E8B8B]/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold text-[#2E8B8B] flex items-center gap-2">
+                    <UserPlus className="w-4 h-4" />
+                    Add Friends to Group ({friendsNotInGroup.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {friendsNotInGroup.map((friend, index) => {
+                    const friendUid = friend.uid || friend.id;
+                    const isAdding = addingFriendId === friendUid;
+                    return (
+                      <div key={friendUid}>
+                        <div className="px-4 py-3 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl flex flex-shrink-0 items-center justify-center shadow-soft"
+                              style={{ background: 'linear-gradient(135deg, #2E8B8B 0%, #3aacac 100%)' }}
+                            >
+                              <span className="text-white font-medium">{friend.displayName?.charAt(0)?.toUpperCase() || 'F'}</span>
+                            </div>
+                            <div className="min-w-0 pr-2">
+                              <p className="font-semibold text-[#1F3A5F] truncate">{friend.displayName}</p>
+                              <p className="text-sm text-[#9DAEC5] truncate">{friend.email}</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            disabled={isAdding}
+                            onClick={() => handleAddFriendToGroup(friend)}
+                            className="rounded-lg font-semibold shadow-soft text-white text-xs"
+                            style={{ background: 'linear-gradient(135deg, #2E8B8B 0%, #3aacac 100%)' }}
+                          >
+                            {isAdding ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                            ) : (
+                              <UserPlus className="w-3.5 h-3.5 mr-1" />
+                            )}
+                            {isAdding ? 'Adding...' : 'Add'}
+                          </Button>
+                        </div>
+                        {index < friendsNotInGroup.length - 1 && <Separator className="bg-[#F0F4FB]" />}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+
+            {friends.length === 0 && !friendsLoading && (
+              <Card className="border-dashed border-2 border-[#D3DFEE] bg-white shadow-none rounded-2xl">
+                <CardContent className="py-8 text-center">
+                  <Users className="w-10 h-10 text-[#D3DFEE] mx-auto mb-3" />
+                  <p className="text-sm text-[#6B7F99]">Add friends to quickly invite them to groups</p>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => navigate('/friends')}
+                    className="text-[#2E8B8B] font-bold mt-1"
+                  >
+                    Go to Friends →
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {friendsNotInGroup.length === 0 && friends.length > 0 && (
+              <div className="text-center py-4">
+                <Badge variant="outline" className="bg-[#2E8B8B]/5 text-[#2E8B8B] border-[#2E8B8B]/20 py-1.5 px-3">
+                  <Check className="w-3.5 h-3.5 mr-1.5" />
+                  All your friends are already in this group
+                </Badge>
+              </div>
+            )}
 
             {/* Join Requests (Admin Only) */}
             {isAdmin && group.joinRequests && group.joinRequests.length > 0 && (
