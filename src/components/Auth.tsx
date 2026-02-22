@@ -8,6 +8,32 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Wallet, Mail, Lock, User, AlertCircle, ArrowRight } from 'lucide-react';
 
+function getErrorMessage(err: any): string {
+  if (err.message && err.message.includes('Only @gmail.com emails')) {
+    return err.message;
+  }
+  switch (err.code) {
+    case 'auth/invalid-credential':
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+      return 'Invalid email or password.';
+    case 'auth/email-already-in-use':
+      return 'An account already exists with this email address.';
+    case 'auth/weak-password':
+      return 'Password should be at least 6 characters.';
+    case 'auth/popup-closed-by-user':
+      return 'Sign-in popup was closed before completion.';
+    case 'auth/popup-blocked':
+      return 'Sign-in popup was blocked by your browser. Please allow popups for this site.';
+    case 'auth/network-request-failed':
+      return 'Network error. Please check your internet connection.';
+    case 'auth/invalid-email':
+      return 'Please enter a valid email address.';
+    default:
+      return err.message || 'An unexpected error occurred. Please try again.';
+  }
+}
+
 export function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +49,7 @@ export function Auth() {
       setLoading(true);
       await login(email, password);
     } catch (err: any) {
-      setError(err.message || 'Failed to login');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -40,7 +66,7 @@ export function Auth() {
       setLoading(true);
       await register(email, password, displayName);
     } catch (err: any) {
-      setError(err.message || 'Failed to register');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -52,7 +78,7 @@ export function Auth() {
       setLoading(true);
       await loginWithGoogle();
     } catch (err: any) {
-      setError(err.message || 'Failed to login with Google');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

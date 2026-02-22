@@ -26,8 +26,9 @@ import {
   deleteGroup,
   getUserBudget,
   getUserTotalExpenses,
+  getGroupPayments,
 } from '@/services/firestore';
-import type { Group, Expense, Settlement, JoinRequest } from '@/types';
+import type { Group, Expense, Settlement, JoinRequest, Payment } from '@/types';
 import {
   ArrowLeft,
   Plus,
@@ -102,6 +103,7 @@ export function GroupDetails() {
   const [group, setGroup] = useState<Group | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -269,10 +271,11 @@ export function GroupDetails() {
     setLoading(true);
     setError(null);
     try {
-      const [groupData, groupExpenses, groupSettlements] = await Promise.all([
+      const [groupData, groupExpenses, groupSettlements, groupPayments] = await Promise.all([
         getGroupById(groupId),
         getGroupExpenses(groupId),
         getGroupSettlements(groupId),
+        getGroupPayments(groupId),
       ]);
 
       if (groupData) {
@@ -289,6 +292,7 @@ export function GroupDetails() {
 
       setExpenses(groupExpenses);
       setSettlements(groupSettlements);
+      setPayments(groupPayments);
     } catch (err: any) {
       console.error('Error loading group data:', err);
       setError(err.message || "Failed to load group data. Please checking your connection and try again.");
@@ -443,7 +447,7 @@ export function GroupDetails() {
     }
   }
 
-  const balances = group ? calculateBalances(expenses, settlements, group.members) : new Map();
+  const balances = group ? calculateBalances(expenses, settlements, group.members, payments) : new Map();
   const debts = getSimplifiedDebts(balances);
 
   // Analytics Data
@@ -846,6 +850,25 @@ export function GroupDetails() {
                           )}
                         </div>
                       </div>
+
+                      {expense.paidBy !== currentUser?.uid && expense.splitAmong.includes(currentUser?.uid ?? '') && (
+                        <div className="mt-4 pt-3 border-t border-[#F0F4FB] flex justify-end">
+                          {payments.some(p => p.expenseId === expense.id && p.userId === currentUser?.uid) ? (
+                            <Badge variant="outline" className="text-sm font-semibold text-green-600 border-green-200 bg-green-50 px-3 py-1">
+                              <Check className="w-4 h-4 mr-1" />
+                              Paid
+                            </Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => navigate(`/group/${group.id}/pay/${expense.id}`)}
+                              className="bg-[#2E8B8B] hover:bg-[#2E8B8B]/90 text-white font-medium shadow-soft rounded-lg px-6"
+                            >
+                              Pay Your Share
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -1123,37 +1146,50 @@ export function GroupDetails() {
 
           {/* History Tab */}
           <TabsContent value="history" className="space-y-4">
-            <h2 className="text-lg font-bold text-[#1F3A5F]">Settlement history</h2>
+            <h2 className="text-lg font-bold text-[#1F3A5F]">Payment history</h2>
 
-            {settlements.length === 0 ? (
+            {payments.length === 0 ? (
               <Card className="border-dashed border-2 border-[#D3DFEE] bg-white shadow-none rounded-2xl">
                 <CardContent className="py-12 text-center">
                   <History className="w-12 h-12 text-[#D3DFEE] mx-auto mb-4" />
-                  <p className="text-[#1F3A5F] font-medium">No settlements yet</p>
+                  <p className="text-[#1F3A5F] font-medium">No payments yet</p>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-3">
-                {settlements.map((settlement) => (
-                  <Card key={settlement.id} className="st-card">
+                {payments.map((payment) => (
+                  <Card key={payment.id} className="st-card shadow-soft rounded-2xl border border-[#E3EAF4]">
                     <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-[#2E8B8B]/10 flex items-center justify-center flex-shrink-0">
-                            <Check className="w-4 h-4 text-[#2E8B8B]" />
+                          <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+                            <Check className="w-5 h-5 text-green-600" />
                           </div>
-                          <div className="flex items-baseline gap-2">
-                            <span className="font-semibold text-sm text-[#1F3A5F]">
-                              {settlement.fromUserName} paid {settlement.toUserName}
-                            </span>
-                            <span className="text-xs text-[#9DAEC5]">
-                              {settlement.settledAt.toLocaleDateString()}
-                            </span>
+                          <div>
+                            <p className="font-semibold text-sm text-[#1F3A5F]">
+                              {payment.expenseTitle || 'Expense Payment'}
+                            </p>
+                            <p className="text-xs text-[#9DAEC5] flex items-center gap-1.5 mt-0.5">
+                              {payment.timestamp.toLocaleString()} ·
+                              <Badge variant="outline" className="text-[9px] bg-green-500/10 text-green-700 border-green-200 py-0 h-4 uppercase">
+                                {payment.status}
+                              </Badge>
+                            </p>
                           </div>
                         </div>
-                        <span className="font-bold text-[#2E8B8B]">
-                          {formatCurrency(settlement.amount)}
-                        </span>
+                        <div className="text-right">
+                          <p className="font-bold text-lg text-[#2E8B8B]">
+                            {formatCurrency(payment.amount)}
+                          </p>
+                          <p className="text-[10px] uppercase font-bold text-[#9DAEC5] tracking-wider mt-0.5">
+                            {payment.paymentMethod}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#F7F9FB] rounded-lg p-2.5 mt-2 flex justify-between text-xs">
+                        <span className="text-[#6B7F99]">To: <span className="font-semibold text-[#1F3A5F]">{payment.paidToName}</span></span>
+                        <span className="text-[#6B7F99]">Txn: <span className="font-medium">{payment.transactionId}</span></span>
                       </div>
                     </CardContent>
                   </Card>

@@ -1,5 +1,5 @@
 import { db, collection, doc, addDoc, getDoc, getDocs, updateDoc, deleteDoc, setDoc, serverTimestamp } from '@/lib/firebase';
-import type { Group, GroupMember, JoinRequest, Expense, Settlement, Activity } from '@/types';
+import type { Group, GroupMember, JoinRequest, Expense, Settlement, Activity, Payment } from '@/types';
 
 // Helper to parse dates
 function parseDate(value: any): Date {
@@ -652,7 +652,8 @@ export async function getGroupSettlements(groupId: string): Promise<Settlement[]
 export function calculateBalances(
   expenses: Expense[],
   settlements: Settlement[],
-  members: GroupMember[]
+  members: GroupMember[],
+  payments: Payment[] = []
 ): Map<string, number> {
   const balances = new Map<string, number>();
 
@@ -686,6 +687,18 @@ export function calculateBalances(
     balances.set(
       settlement.toUserId,
       (balances.get(settlement.toUserId) || 0) - settlement.amount
+    );
+  });
+
+  // Process mock payments
+  payments.forEach((payment) => {
+    balances.set(
+      payment.userId,
+      (balances.get(payment.userId) || 0) + payment.amount
+    );
+    balances.set(
+      payment.paidToId,
+      (balances.get(payment.paidToId) || 0) - payment.amount
     );
   });
 
@@ -734,4 +747,59 @@ export function getSimplifiedDebts(
   }
 
   return debts;
+}
+
+// Payment Services
+export async function addPayment(
+  paymentData: Omit<Payment, 'id' | 'timestamp'>
+): Promise<string> {
+  const data = {
+    ...paymentData,
+    timestamp: serverTimestamp(),
+  };
+
+  const result = await addDoc(collection(db, 'payments'), data);
+
+  // Fetch group for activity logging
+  const groupSnap = await getDoc(doc(db, 'groups', paymentData.groupId));
+  const groupName = groupSnap.exists() ? groupSnap.data().name : 'Unknown Group';
+
+  await logActivity(
+    paymentData.groupId,
+    groupName,
+    'settlement',
+    `made a payment for ${paymentData.expenseTitle || 'an expense'}`,
+    paymentData.userId,
+    'Member' // DisplayName context might not be known fully here unless queried, fallback
+  );
+
+  return result.id;
+}
+
+export async function getGroupPayments(groupId: string): Promise<Payment[]> {
+  const snapshot = await getDocs(collection(db, 'payments'));
+  const payments: Payment[] = [];
+
+  snapshot.docs.forEach((docItem: any) => {
+    const data = docItem.data();
+    if (data.groupId === groupId) {
+      payments.push({
+        id: docItem.id,
+        userId: data.userId,
+        paidToId: data.paidToId,
+        paidToName: data.paidToName,
+        expenseId: data.expenseId,
+        groupId: data.groupId,
+        amount: data.amount,
+        paymentMethod: data.paymentMethod,
+        transactionId: data.transactionId,
+        timestamp: parseDate(data.timestamp),
+        status: data.status,
+        expenseTitle: data.expenseTitle,
+      });
+    }
+  });
+
+  payments.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  return payments;
 }

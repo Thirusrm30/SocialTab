@@ -392,7 +392,7 @@ export const signInWithEmailAndPassword = useRealFirebase && realAuth ? realSign
 export const signInWithPopup = useRealFirebase && realAuth ? realSignInWithPopup : mockSignInWithPopup;
 export const signOut = useRealFirebase && realAuth ? realSignOut : mockSignOut;
 export const updateProfile = useRealFirebase && realAuth ? realUpdateProfile : mockUpdateProfile;
-export const GoogleAuthProvider = useRealFirebase && realAuth ? FirebaseGoogleAuthProvider : class GoogleAuthProvider { };
+export const GoogleAuthProvider = useRealFirebase && realAuth ? FirebaseGoogleAuthProvider : class GoogleAuthProvider { setCustomParameters(_params: any) { } };
 
 export const collection = useRealFirebase && realDb ? realCollectionFn : mockCollection;
 export const doc = useRealFirebase && realDb ? realDocFn : mockDoc;

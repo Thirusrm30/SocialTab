@@ -77,3 +77,18 @@ export interface Activity {
   userName: string;
   createdAt: Date;
 }
+
+export interface Payment {
+  id: string;
+  userId: string;
+  paidToId: string;
+  paidToName: string;
+  expenseId: string;
+  groupId: string;
+  amount: number;
+  paymentMethod: string;
+  transactionId: string;
+  timestamp: Date;
+  status: string;
+  expenseTitle?: string;
+}
