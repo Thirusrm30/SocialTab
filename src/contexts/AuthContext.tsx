@@ -22,6 +22,8 @@ interface AuthContextType {
   register: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  sendOtp: (email: string) => Promise<void>;
+  verifyOtp: (email: string, otp: string) => Promise<string>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -123,6 +125,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, { merge: true });
   }
 
+  async function sendOtp(email: string) {
+    const res = await fetch('http://localhost:5000/api/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send OTP');
+  }
+
+  async function verifyOtp(email: string, otp: string) {
+    const res = await fetch('http://localhost:5000/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to verify OTP');
+    return data.token;
+  }
+
   const value = {
     currentUser,
     loading,
@@ -130,6 +153,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     register,
     logout,
     loginWithGoogle,
+    sendOtp,
+    verifyOtp,
   };
 
   return (
