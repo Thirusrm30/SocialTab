@@ -443,6 +443,16 @@ export async function sendJoinRequest(
   await updateDoc(groupRef, {
     joinRequests: [...currentRequests, request],
   });
+
+  const admins = data.members.filter((m: any) => m.role === 'admin');
+  for (const admin of admins) {
+    await addNotification(
+      admin.uid,
+      'join_request',
+      `${userName} requested to join ${data.name}.`,
+      `/group/${groupId}`
+    );
+  }
 }
 
 export async function approveJoinRequest(
@@ -478,6 +488,13 @@ export async function approveJoinRequest(
     `joined the group`,
     request.uid,
     request.displayName
+  );
+
+  await addNotification(
+    request.uid,
+    'group_invite',
+    `Your request to join ${data.name} was approved!`,
+    `/group/${groupId}`
   );
 }
 
@@ -521,7 +538,8 @@ export async function addExpense(
   paidByName: string,
   splitAmong: string[],
   createdBy: string,
-  category?: string
+  category?: string,
+  location?: { lat: number; lng: number; city?: string; state?: string; country?: string }
 ): Promise<string> {
   const expenseData = {
     groupId,
@@ -531,6 +549,7 @@ export async function addExpense(
     paidByName,
     splitAmong,
     category,
+    location: location || null,
     createdAt: serverTimestamp(),
     createdBy,
   };
@@ -569,6 +588,7 @@ export async function getGroupExpenses(groupId: string): Promise<Expense[]> {
         paidByName: data.paidByName,
         splitAmong: data.splitAmong,
         category: data.category,
+        location: data.location || undefined,
         createdAt: parseDate(data.createdAt),
         createdBy: data.createdBy,
       });
@@ -802,4 +822,148 @@ export async function getGroupPayments(groupId: string): Promise<Payment[]> {
 
   payments.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   return payments;
+}
+
+// Notification Services
+export async function addNotification(
+  userId: string,
+  type: 'group_invite' | 'expense_added' | 'payment_done' | 'friend_invite' | 'group_created' | 'join_request',
+  message: string,
+  link?: string
+): Promise<string> {
+  const notificationData = {
+    userId,
+    type,
+    message,
+    read: false,
+    createdAt: serverTimestamp(),
+    ...(link ? { link } : {}),
+  };
+  const result = await addDoc(collection(db, 'notifications'), notificationData);
+  return result.id;
+}
+
+export async function getUserNotifications(userId: string): Promise<any[]> {
+  const q = collection(db, 'notifications');
+  const snapshot = await getDocs(q);
+  const notifications: any[] = [];
+  snapshot.docs.forEach((docItem: any) => {
+    const data = docItem.data();
+    if (data.userId === userId) {
+      notifications.push({
+        id: docItem.id,
+        ...data,
+        createdAt: parseDate(data.createdAt),
+      });
+    }
+  });
+  notifications.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return notifications;
+}
+
+export async function markNotificationAsRead(notificationId: string): Promise<void> {
+  await updateDoc(doc(db, 'notifications', notificationId), { read: true });
+}
+
+export async function markAllNotificationsAsRead(userId: string): Promise<void> {
+  const snapshot = await getDocs(collection(db, 'notifications'));
+  const promises: Promise<void>[] = [];
+  snapshot.docs.forEach((docItem: any) => {
+    const data = docItem.data();
+    if (data.userId === userId && !data.read) {
+      promises.push(updateDoc(doc(db, 'notifications', docItem.id), { read: true }));
+    }
+  });
+  await Promise.all(promises);
+}
+
+// Friend Request Services
+export async function sendFriendRequest(fromUserId: string, fromUserName: string, toUserId: string, toUserName: string): Promise<string> {
+  const result = await addDoc(collection(db, 'friendRequests'), {
+    fromUserId,
+    fromUserName,
+    toUserId,
+    toUserName,
+    status: 'pending',
+    createdAt: serverTimestamp(),
+  });
+
+  await addNotification(
+    toUserId,
+    'friend_invite',
+    `${fromUserName} sent you a friend request.`,
+    '/profile'
+  );
+
+  return result.id;
+}
+
+export async function getFriendRequests(userId: string): Promise<any[]> {
+  const snapshot = await getDocs(collection(db, 'friendRequests'));
+  const requests: any[] = [];
+  snapshot.docs.forEach((docItem: any) => {
+    const data = docItem.data();
+    if (data.toUserId === userId && data.status === 'pending') {
+      requests.push({ id: docItem.id, ...data, createdAt: parseDate(data.createdAt) });
+    }
+  });
+  return requests;
+}
+
+export async function resolveFriendRequest(requestId: string, status: 'accepted' | 'rejected', fromUserId?: string, toUserId?: string): Promise<void> {
+  await updateDoc(doc(db, 'friendRequests', requestId), { status });
+  if (status === 'accepted' && fromUserId && toUserId) {
+    const user1Ref = doc(db, 'users', toUserId);
+    const user2Ref = doc(db, 'users', fromUserId);
+
+    // Quick method using getDoc to fetch current friends array and append
+    const user1Snap = await getDoc(user1Ref);
+    const user2Snap = await getDoc(user2Ref);
+
+    const user1Friends = user1Snap.exists() && user1Snap.data().friends ? user1Snap.data().friends : [];
+    const user2Friends = user2Snap.exists() && user2Snap.data().friends ? user2Snap.data().friends : [];
+
+    if (!user1Friends.includes(fromUserId)) {
+      await updateDoc(user1Ref, { friends: [...user1Friends, fromUserId] });
+    }
+    if (!user2Friends.includes(toUserId)) {
+      await updateDoc(user2Ref, { friends: [...user2Friends, toUserId] });
+    }
+  }
+}
+
+export async function getFriends(userId: string): Promise<any[]> {
+  const userRef = doc(db, 'users', userId);
+  const snap = await getDoc(userRef);
+  if (!snap.exists()) return [];
+  const friendIds = snap.data().friends || [];
+  if (friendIds.length === 0) return [];
+
+  const friends: any[] = [];
+  // fetch each friend
+  for (const fId of friendIds) {
+    const fSnap = await getDoc(doc(db, 'users', fId));
+    if (fSnap.exists()) {
+      friends.push({ id: fSnap.id, ...fSnap.data() });
+    }
+  }
+  return friends;
+}
+
+export async function searchUsers(queryText: string): Promise<any[]> {
+  const snapshot = await getDocs(collection(db, 'users'));
+  const users: any[] = [];
+  const lowerQuery = queryText.toLowerCase();
+
+  snapshot.docs.forEach((docItem: any) => {
+    const data = docItem.data();
+    if (
+      (data.email && data.email.toLowerCase().includes(lowerQuery)) ||
+      (data.displayName && data.displayName.toLowerCase().includes(lowerQuery))
+    ) {
+      users.push({ uid: docItem.id, ...data });
+    }
+  });
+
+  return users;
 }

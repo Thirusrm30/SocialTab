@@ -58,8 +58,10 @@ import {
   Mic,
   MicOff,
   Image as ImageIcon,
+  MapPin,
 } from 'lucide-react';
 import { createWorker } from 'tesseract.js';
+import { NotificationsPopover } from '@/components/NotificationsPopover';
 import {
   Select,
   SelectContent,
@@ -117,6 +119,37 @@ export function GroupDetails() {
   const [expenseCategory, setExpenseCategory] = useState('other');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [addingExpense, setAddingExpense] = useState(false);
+  const [expenseLocation, setExpenseLocation] = useState<{ lat: number; lng: number; city?: string; state?: string; country?: string } | undefined>();
+  const [fetchingLocation, setFetchingLocation] = useState(false);
+
+  useEffect(() => {
+    if (expenseDialogOpen) {
+      if (navigator.geolocation) {
+        setFetchingLocation(true);
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            let city, state, country;
+            try {
+              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+              const data = await res.json();
+              city = data.address?.city || data.address?.town || data.address?.village || data.address?.county;
+              state = data.address?.state;
+              country = data.address?.country;
+            } catch (err) { }
+            setExpenseLocation({ lat, lng, city, state, country });
+            setFetchingLocation(false);
+          },
+          () => {
+            setFetchingLocation(false);
+          }
+        );
+      }
+    } else {
+      setExpenseLocation(undefined);
+    }
+  }, [expenseDialogOpen]);
 
   // Voice & OCR State
   const [processingReceipt, setProcessingReceipt] = useState(false);
@@ -336,7 +369,8 @@ export function GroupDetails() {
         currentUser.displayName || 'Anonymous',
         selectedMembers,
         currentUser.uid,
-        expenseCategory
+        expenseCategory,
+        expenseLocation
       );
       setExpenseDialogOpen(false);
       setExpenseDescription('');
@@ -598,17 +632,20 @@ export function GroupDetails() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
-            {!isAdmin && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLeaveGroup}
-                className="text-red-200 hover:text-red-100 hover:bg-red-500/20 transition-all"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Leave
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              <NotificationsPopover />
+              {!isAdmin && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLeaveGroup}
+                  className="text-red-200 hover:text-red-100 hover:bg-red-500/20 transition-all"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Leave
+                </Button>
+              )}
+            </div>
           </div>
           <div className="mt-3">
             <h1 className="text-2xl font-bold text-white tracking-tight">{group.name}</h1>
@@ -688,6 +725,17 @@ export function GroupDetails() {
                       <DialogTitle className="text-[#1F3A5F]">Add expense</DialogTitle>
                       <DialogDescription>Record a new shared expense</DialogDescription>
                     </DialogHeader>
+
+                    {fetchingLocation && (
+                      <p className="text-xs text-[#2E8B8B] animate-pulse flex items-center justify-center mt-2">
+                        <MapPin className="w-3 h-3 mr-1" /> Getting location...
+                      </p>
+                    )}
+                    {expenseLocation && !fetchingLocation && (
+                      <p className="text-xs text-[#6B7F99] flex items-center justify-center mt-2">
+                        <MapPin className="w-3 h-3 mr-1 text-[#2E8B8B]" /> {expenseLocation.city || 'Location tracked'}
+                      </p>
+                    )}
 
                     <div className="flex gap-2 mb-2 mt-4">
                       <Button
@@ -831,9 +879,17 @@ export function GroupDetails() {
                             <p className="text-sm text-[#6B7F99]">
                               Paid by {expense.paidByName} · {expense.createdAt.toLocaleDateString()}
                             </p>
-                            <p className="text-xs text-[#9DAEC5] mt-1">
-                              Split among {expense.splitAmong.length} people
-                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-xs text-[#9DAEC5]">
+                                Split among {expense.splitAmong.length} people
+                              </p>
+                              {expense.location && (
+                                <Badge variant="outline" className="text-[10px] text-[#2E8B8B] border-[#2E8B8B] bg-[#2E8B8B]/5">
+                                  <MapPin className="w-3 h-3 mr-1" />
+                                  {expense.location.city ? `${expense.location.city}, ${expense.location.country}` : 'Location tracked'}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="text-right">

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { getUserGroups, getPublicGroups, createGroup, searchGroups, getRecentActivities, deleteActivity, setUserBudget, getUserBudget, getUserTotalExpenses } from '@/services/firestore';
 import type { Group, Activity } from '@/types';
+import { NotificationsPopover } from '@/components/NotificationsPopover';
 import {
   Plus,
   Search,
@@ -302,6 +303,10 @@ export function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <NotificationsPopover />
+            <Button variant="ghost" size="icon" onClick={() => navigate('/friends')} className="text-white/80 hover:bg-white/10 hover:text-white transition-all" title="Friends">
+              <Users className="w-5 h-5" />
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate('/export')} className="text-white/80 hover:bg-white/10 hover:text-white transition-all" title="Export Reports">
               <FileText className="w-5 h-5" />
             </Button>

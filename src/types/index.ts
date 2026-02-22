@@ -3,6 +3,7 @@ export interface User {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
+  friends?: string[]; // array of UIDs
 }
 
 export interface Group {
@@ -40,6 +41,13 @@ export interface Expense {
   paidByName: string;
   splitAmong: string[];
   category?: string;
+  location?: {
+    lat: number;
+    lng: number;
+    city?: string;
+    state?: string;
+    country?: string;
+  };
   createdAt: Date;
   createdBy: string;
 }
@@ -91,4 +99,24 @@ export interface Payment {
   timestamp: Date;
   status: string;
   expenseTitle?: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'group_invite' | 'expense_added' | 'payment_done' | 'friend_invite' | 'group_created' | 'join_request';
+  message: string;
+  read: boolean;
+  createdAt: Date;
+  link?: string;
+}
+
+export interface FriendRequest {
+  id: string;
+  fromUserId: string;
+  fromUserName: string;
+  toUserId: string;
+  toUserName: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: Date;
 }
