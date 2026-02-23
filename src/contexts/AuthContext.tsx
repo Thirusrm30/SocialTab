@@ -22,8 +22,6 @@ interface AuthContextType {
   register: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
   loginWithGoogle: () => Promise<void>;
-  sendOtp: (email: string) => Promise<void>;
-  verifyOtp: (email: string, otp: string) => Promise<string>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,9 +57,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function login(email: string, password: string) {
-    if (!email.toLowerCase().endsWith('@gmail.com')) {
-      throw new Error('Only @gmail.com emails are allowed for manual login.');
-    }
+    // Debug: Log what we're using (real Firebase or mock)
+    console.log('Using real Firebase:', Boolean(import.meta.env.VITE_FIREBASE_API_KEY));
+    console.log('Attempting login with email:', email);
+    
+    // Temporarily removed Gmail restriction for debugging
+    // if (!email.toLowerCase().endsWith('@gmail.com')) {
+    //   throw new Error('Only @gmail.com emails are allowed for manual login.');
+    // }
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
@@ -77,9 +80,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function register(email: string, password: string, displayName: string) {
-    if (!email.toLowerCase().endsWith('@gmail.com')) {
-      throw new Error('Only @gmail.com emails are allowed for manual signup.');
-    }
+    // Temporarily removed Gmail restriction for debugging
+    // if (!email.toLowerCase().endsWith('@gmail.com')) {
+    //   throw new Error('Only @gmail.com emails are allowed for manual signup.');
+    // }
     const { user }: any = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(user, { displayName });
 
@@ -125,26 +129,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, { merge: true });
   }
 
-  async function sendOtp(email: string) {
-    const res = await fetch('http://localhost:5000/api/auth/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to send OTP');
-  }
-
-  async function verifyOtp(email: string, otp: string) {
-    const res = await fetch('http://localhost:5000/api/auth/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otp })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to verify OTP');
-    return data.token;
-  }
 
   const value = {
     currentUser,
@@ -153,8 +137,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     register,
     logout,
     loginWithGoogle,
-    sendOtp,
-    verifyOtp,
   };
 
   return (

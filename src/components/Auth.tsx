@@ -10,6 +10,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Wallet, Mail, Lock, User, AlertCircle, ArrowRight } from 'lucide-react';
 
 function getErrorMessage(err: any): string {
+  // Log the full error for debugging
+  console.log('Full auth error:', err);
+  console.log('Error code:', err.code);
+  console.log('Error message:', err.message);
+  
   if (err.message && err.message.includes('Only @gmail.com emails')) {
     return err.message;
   }
@@ -40,10 +45,8 @@ export function Auth() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
-  const [otp, setOtp] = useState('');
-  const [showOtp, setShowOtp] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { login, register, loginWithGoogle, sendOtp, verifyOtp } = useAuth();
+  const { login, register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   async function handleLogin(e: React.FormEvent) {
@@ -51,15 +54,9 @@ export function Auth() {
     try {
       setError('');
       setLoading(true);
-      if (showOtp) {
-        await verifyOtp(email, otp);
-        // After verifying OTP via backend, we also sign them into Firebase
-        await login(email, password);
-      } else {
-        // Send OTP first
-        await sendOtp(email);
-        setShowOtp(true);
-      }
+      await login(email, password);
+      // Navigate to dashboard or home page after successful login
+      navigate('/dashboard');
     } catch (err: any) {
       setError(getErrorMessage(err));
     } finally {
@@ -76,13 +73,9 @@ export function Auth() {
     try {
       setError('');
       setLoading(true);
-      if (showOtp) {
-        await verifyOtp(email, otp);
-        await register(email, password, displayName);
-      } else {
-        await sendOtp(email);
-        setShowOtp(true);
-      }
+      await register(email, password, displayName);
+      // Navigate to dashboard or home page after successful registration
+      navigate('/dashboard');
     } catch (err: any) {
       setError(getErrorMessage(err));
     } finally {
@@ -95,6 +88,8 @@ export function Auth() {
       setError('');
       setLoading(true);
       await loginWithGoogle();
+      // Navigate to dashboard or home page after successful Google login
+      navigate('/dashboard');
     } catch (err: any) {
       setError(getErrorMessage(err));
     } finally {
@@ -175,14 +170,14 @@ export function Auth() {
               >
                 <TabsTrigger
                   value="login"
-                  onClick={() => { setShowOtp(false); setError(''); }}
+                  onClick={() => setError('')}
                   className="rounded-lg text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] transition-all"
                 >
                   Sign in
                 </TabsTrigger>
                 <TabsTrigger
                   value="register"
-                  onClick={() => { setShowOtp(false); setError(''); }}
+                  onClick={() => setError('')}
                   className="rounded-lg text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-[#1F3A5F] data-[state=active]:shadow-soft text-[#6B7F99] transition-all"
                 >
                   Create account
@@ -224,48 +219,9 @@ export function Auth() {
                         onChange={(e) => setPassword(e.target.value)}
                         className="pl-10 rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B] focus:ring-[#2E8B8B]/20 h-11"
                         required
-                        disabled={showOtp}
                       />
                     </div>
                   </div>
-
-                  {showOtp && (
-                    <div className="space-y-1.5 animate-fade-up">
-                      <Label htmlFor="login-otp" className="text-sm font-medium text-[#2B2B2B]">
-                        Verification Code (OTP)
-                      </Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9DAEC5]" />
-                        <Input
-                          id="login-otp"
-                          type="text"
-                          placeholder="Enter 6-digit OTP"
-                          value={otp}
-                          maxLength={6}
-                          onChange={(e) => setOtp(e.target.value)}
-                          className="pl-10 rounded-xl border-[#2E8B8B] focus:border-[#2E8B8B] focus:ring-[#2E8B8B]/20 h-11"
-                          required
-                        />
-                      </div>
-                      <p className="text-xs text-[#6B7F99] mt-1 text-center">We've sent a code to {email}</p>
-                      <button
-                        type="button"
-                        className="text-xs text-[#2E8B8B] font-semibold hover:underline w-full text-center mt-1"
-                        onClick={async () => {
-                          try {
-                            setError('');
-                            await sendOtp(email);
-                            setError('');
-                            alert('New OTP sent! Check the backend terminal for the Preview URL.');
-                          } catch (err: any) {
-                            setError(getErrorMessage(err));
-                          }
-                        }}
-                      >
-                        Resend OTP
-                      </button>
-                    </div>
-                  )}
 
                   <Button
                     id="btn-login"
@@ -274,9 +230,9 @@ export function Auth() {
                     style={{ background: 'linear-gradient(135deg, #1F3A5F 0%, #2a4e7f 100%)' }}
                     disabled={loading}
                   >
-                    {loading ? (showOtp ? 'Verifying OTP…' : 'Sending OTP…') : (
+                    {loading ? 'Signing in…' : (
                       <span className="flex items-center gap-2">
-                        {showOtp ? 'Sign in' : 'Continue'} <ArrowRight className="w-4 h-4" />
+                        Sign in <ArrowRight className="w-4 h-4" />
                       </span>
                     )}
                   </Button>
@@ -336,32 +292,9 @@ export function Auth() {
                         onChange={(e) => setPassword(e.target.value)}
                         className="pl-10 rounded-xl border-[#D3DFEE] focus:border-[#2E8B8B] focus:ring-[#2E8B8B]/20 h-11"
                         required
-                        disabled={showOtp}
                       />
                     </div>
                   </div>
-
-                  {showOtp && (
-                    <div className="space-y-1.5 animate-fade-up">
-                      <Label htmlFor="register-otp" className="text-sm font-medium text-[#2B2B2B]">
-                        Verification Code (OTP)
-                      </Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9DAEC5]" />
-                        <Input
-                          id="register-otp"
-                          type="text"
-                          placeholder="Enter 6-digit OTP"
-                          value={otp}
-                          maxLength={6}
-                          onChange={(e) => setOtp(e.target.value)}
-                          className="pl-10 rounded-xl border-[#2E8B8B] focus:border-[#2E8B8B] focus:ring-[#2E8B8B]/20 h-11"
-                          required
-                        />
-                      </div>
-                      <p className="text-xs text-[#6B7F99] mt-1 text-center">We've sent a code to {email}</p>
-                    </div>
-                  )}
 
                   <Button
                     id="btn-register"
@@ -370,9 +303,9 @@ export function Auth() {
                     style={{ background: 'linear-gradient(135deg, #2E8B8B 0%, #3aacac 100%)' }}
                     disabled={loading}
                   >
-                    {loading ? (showOtp ? 'Verifying OTP…' : 'Sending OTP…') : (
+                    {loading ? 'Creating account…' : (
                       <span className="flex items-center gap-2">
-                        {showOtp ? 'Create account' : 'Continue'} <ArrowRight className="w-4 h-4" />
+                        Create account <ArrowRight className="w-4 h-4" />
                       </span>
                     )}
                   </Button>
@@ -405,6 +338,22 @@ export function Auth() {
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
               </svg>
               Continue with Google
+            </Button>
+
+            {/* Debug Test Button */}
+            <Button
+              variant="outline"
+              className="w-full h-11 rounded-xl border-[#D3DFEE] text-[#2B2B2B] font-medium hover:bg-[#F7F9FB] hover:border-[#2E8B8B]/40 transition-all mt-2"
+              onClick={() => {
+                console.log('Firebase API Key exists:', !!import.meta.env.VITE_FIREBASE_API_KEY);
+                console.log('Environment check:', {
+                  apiKey: import.meta.env.VITE_FIREBASE_API_KEY?.substring(0, 10) + '...',
+                  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+                  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID
+                });
+              }}
+            >
+              Debug Firebase Connection
             </Button>
 
             <p className="text-center text-xs text-[#9DAEC5] mt-4">

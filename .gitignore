@@ -47,3 +47,7 @@ secrets.json
 
 # Firebase
 .firebase
+
+# OTP related files
+*otp*
+*OTP*
