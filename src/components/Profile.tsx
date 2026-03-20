@@ -86,8 +86,8 @@ export function Profile() {
                 if (profile) {
                     setDisplayName(profile.displayName || currentUser.displayName || 'Anonymous');
                     setEmail(profile.email || currentUser.email || '');
-                    setUserId(profile.userId);
-                    setCreatedAt(profile.createdAt);
+                    setUserId(profile.uid);
+                    setCreatedAt(profile.createdAt || '');
                 } else {
                     // Initialize profile if it doesn't exist
                     const now = new Date().toISOString();

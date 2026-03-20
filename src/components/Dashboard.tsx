@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -80,56 +80,52 @@ export function Dashboard() {
     return 'bg-teal-500';
   }
 
-  useEffect(() => {
-    loadGroups();
-  }, [currentUser]);
+   useEffect(() => {
+     loadGroups();
+   }, [currentUser]);
 
-  // Load budget whenever currentUser changes
-  useEffect(() => {
-    if (currentUser) {
-      loadBudgetData();
-    }
-  }, [currentUser]);
+   const loadBudgetData = useCallback(async () => {
+     if (!currentUser) return;
+     try {
+       const [userBudget, userTotal] = await Promise.all([
+         getUserBudget(currentUser.uid),
+         getUserTotalExpenses(currentUser.uid),
+       ]);
+       setBudget(userBudget);
+       setTotalSpent(Number(userTotal));
+     } catch (error) {
+       console.error('Error loading budget data:', error);
+     }
+   }, [currentUser]);
 
-  async function loadGroups() {
-    if (!currentUser) return;
-    setLoading(true);
-    try {
-      const [userGroups, allPublic] = await Promise.all([
-        getUserGroups(currentUser.uid),
-        getPublicGroups(),
-      ]);
-      setMyGroups(userGroups);
-      setPublicGroups(allPublic.filter((g) => !userGroups.some((ug) => ug.id === g.id)));
+   const loadGroups = useCallback(async () => {
+     if (!currentUser) return;
+     setLoading(true);
+     try {
+       const [userGroups, allPublic] = await Promise.all([
+         getUserGroups(currentUser.uid),
+         getPublicGroups(),
+       ]);
+       setMyGroups(userGroups);
+       setPublicGroups(allPublic.filter((g) => !userGroups.some((ug) => ug.id === g.id)));
 
-      // Load activities for user's groups
-      if (userGroups.length > 0) {
-        loadActivities(userGroups.map(g => g.id));
-      } else {
-        setRecentActivity([]);
-      }
-    } catch (error) {
-      console.error('Error loading groups:', error);
-    } finally {
-      setLoading(false);
-      // Recalculate total expenses whenever groups reload/finish loading
-      loadBudgetData();
-    }
-  }
+       if (userGroups.length > 0) {
+         loadActivities(userGroups.map(g => g.id));
+       } else {
+         setRecentActivity([]);
+       }
+     } catch (error) {
+       console.error('Error loading groups:', error);
+     } finally {
+       setLoading(false);
+     }
+   }, [currentUser]);
 
-  async function loadBudgetData() {
-    if (!currentUser) return;
-    try {
-      const [userBudget, userTotal] = await Promise.all([
-        getUserBudget(currentUser.uid),
-        getUserTotalExpenses(currentUser.uid),
-      ]);
-      setBudget(userBudget);
-      setTotalSpent(Number(userTotal));
-    } catch (error) {
-      console.error('Error loading budget data:', error);
-    }
-  }
+   useEffect(() => {
+     if (currentUser) {
+       loadBudgetData();
+     }
+   }, [currentUser, loadBudgetData]);
 
   async function handleSetBudget(e: React.FormEvent) {
     e.preventDefault();

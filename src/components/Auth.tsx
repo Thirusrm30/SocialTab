@@ -9,12 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Wallet, Mail, Lock, User, AlertCircle, ArrowRight } from 'lucide-react';
 
-function getErrorMessage(err: any): string {
-  // Log the full error for debugging
-  console.log('Full auth error:', err);
-  console.log('Error code:', err.code);
-  console.log('Error message:', err.message);
-  
+function getErrorMessage(err: { message?: string; code?: string }): string {
   if (err.message && err.message.includes('Only @gmail.com emails')) {
     return err.message;
   }
@@ -35,6 +30,9 @@ function getErrorMessage(err: any): string {
       return 'Network error. Please check your internet connection.';
     case 'auth/invalid-email':
       return 'Please enter a valid email address.';
+    case 'auth/api-key-not-valid.-please-pass-a-valid-api-key.':
+    case 'auth/invalid-api-key':
+      return 'Firebase connection failed. The API key is invalid or expired. Please check your configuration.';
     default:
       return err.message || 'An unexpected error occurred. Please try again.';
   }
@@ -49,53 +47,53 @@ export function Auth() {
   const { login, register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      setError('');
-      setLoading(true);
-      await login(email, password);
-      // Navigate to dashboard or home page after successful login
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
+    async function handleLogin(e: React.FormEvent) {
+      e.preventDefault();
+      try {
+        setError('');
+        setLoading(true);
+        await login(email, password);
+        // Navigate to dashboard or home page after successful login
+        navigate('/dashboard');
+      } catch (err) {
+        setError(getErrorMessage(err as { message?: string; code?: string }));
+      } finally {
+        setLoading(false);
+      }
     }
-  }
 
-  async function handleRegister(e: React.FormEvent) {
-    e.preventDefault();
-    if (!displayName.trim()) {
-      setError('Display name is required');
-      return;
+    async function handleRegister(e: React.FormEvent) {
+      e.preventDefault();
+      if (!displayName.trim()) {
+        setError('Display name is required');
+        return;
+      }
+      try {
+        setError('');
+        setLoading(true);
+        await register(email, password, displayName);
+        // Navigate to dashboard or home page after successful registration
+        navigate('/dashboard');
+      } catch (err) {
+        setError(getErrorMessage(err as { message?: string; code?: string }));
+      } finally {
+        setLoading(false);
+      }
     }
-    try {
-      setError('');
-      setLoading(true);
-      await register(email, password, displayName);
-      // Navigate to dashboard or home page after successful registration
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }
 
-  async function handleGoogleLogin() {
-    try {
-      setError('');
-      setLoading(true);
-      await loginWithGoogle();
-      // Navigate to dashboard or home page after successful Google login
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }
+   async function handleGoogleLogin() {
+     try {
+       setError('');
+       setLoading(true);
+       await loginWithGoogle();
+       // Navigate to dashboard or home page after successful Google login
+       navigate('/dashboard');
+      } catch (err: any) {
+        setError(getErrorMessage(err));
+      } finally {
+        setLoading(false);
+      }
+   }
 
   return (
     <div className="min-h-screen app-bg flex items-center justify-center p-4 relative overflow-hidden">
@@ -340,21 +338,8 @@ export function Auth() {
               Continue with Google
             </Button>
 
-            {/* Debug Test Button */}
-            <Button
-              variant="outline"
-              className="w-full h-11 rounded-xl border-[#D3DFEE] text-[#2B2B2B] font-medium hover:bg-[#F7F9FB] hover:border-[#2E8B8B]/40 transition-all mt-2"
-              onClick={() => {
-                console.log('Firebase API Key exists:', !!import.meta.env.VITE_FIREBASE_API_KEY);
-                console.log('Environment check:', {
-                  apiKey: import.meta.env.VITE_FIREBASE_API_KEY?.substring(0, 10) + '...',
-                  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-                  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID
-                });
-              }}
-            >
-              Debug Firebase Connection
-            </Button>
+
+
 
             <p className="text-center text-xs text-[#9DAEC5] mt-4">
               By continuing, you agree to our{' '}

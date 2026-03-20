@@ -70,21 +70,21 @@ class MockAuth {
     this.listeners.forEach((listener) => listener(this.currentUser));
   }
 
-  async createUserWithEmailAndPassword(email: string, password: string) {
-    const users = JSON.parse(localStorage.getItem('fairshare_users') || '[]');
-    const existingUser = users.find((u: any) => u.email === email);
-    if (existingUser) {
-      throw new Error('Email already in use');
-    }
+   async createUserWithEmailAndPassword(email: string, password: string) {
+     const users = JSON.parse(localStorage.getItem('fairshare_users') || '[]');
+     const existingUser = users.find((u: { email: string }) => u.email === email);
+     if (existingUser) {
+       throw new Error('Email already in use');
+     }
 
-    const newUser: MockUser = {
-      uid: generateId(),
-      email,
-      displayName: null,
-      photoURL: null,
-    };
+     const newUser: MockUser = {
+       uid: generateId(),
+       email,
+       displayName: null,
+       photoURL: null,
+     };
 
-    users.push({ ...newUser, password });
+     users.push({ ...newUser, password } as { email: string; password: string; uid: string; displayName: string | null; photoURL: string | null });
     localStorage.setItem('fairshare_users', JSON.stringify(users));
 
     this.currentUser = newUser;
@@ -94,37 +94,37 @@ class MockAuth {
     return { user: newUser };
   }
 
-  async signInWithEmailAndPassword(email: string, password: string) {
-    const users = JSON.parse(localStorage.getItem('fairshare_users') || '[]');
-    const user = users.find((u: any) => u.email === email && u.password === password);
+    async signInWithEmailAndPassword(email: string, password: string) {
+      const users = JSON.parse(localStorage.getItem('fairshare_users') || '[]');
+      const user = users.find((u: { email: string; password: string }) => u.email === email && u.password === password);
 
-    if (!user) {
-      throw new Error('Invalid email or password');
+      if (!user) {
+        throw new Error('Invalid email or password');
+      }
+
+      const { password: passwordHash, ...userWithoutPassword } = user;
+      this.currentUser = userWithoutPassword;
+      localStorage.setItem('fairshare_currentUser', JSON.stringify(userWithoutPassword));
+      this.notifyListeners();
+
+      return { user: userWithoutPassword };
     }
 
-    const { password: _, ...userWithoutPassword } = user;
-    this.currentUser = userWithoutPassword;
-    localStorage.setItem('fairshare_currentUser', JSON.stringify(userWithoutPassword));
-    this.notifyListeners();
+   async signInWithPopup(_provider: FirebaseGoogleAuthProvider) {
+     // Mock Google sign-in (provider param unused in mock)
+     const mockGoogleUser: MockUser = {
+       uid: generateId(),
+       email: `user${Date.now()}@gmail.com`,
+       displayName: 'Google User',
+       photoURL: null,
+     };
 
-    return { user: userWithoutPassword };
-  }
+     this.currentUser = mockGoogleUser;
+     localStorage.setItem('fairshare_currentUser', JSON.stringify(mockGoogleUser));
+     this.notifyListeners();
 
-  async signInWithPopup(_provider: any) {
-    // Mock Google sign-in
-    const mockGoogleUser: MockUser = {
-      uid: generateId(),
-      email: `user${Date.now()}@gmail.com`,
-      displayName: 'Google User',
-      photoURL: null,
-    };
-
-    this.currentUser = mockGoogleUser;
-    localStorage.setItem('fairshare_currentUser', JSON.stringify(mockGoogleUser));
-    this.notifyListeners();
-
-    return { user: mockGoogleUser };
-  }
+     return { user: mockGoogleUser };
+   }
 
   async signOut() {
     this.currentUser = null;
@@ -132,96 +132,96 @@ class MockAuth {
     this.notifyListeners();
   }
 
-  async updateProfile(user: MockUser, profile: { displayName?: string | null; photoURL?: string | null }) {
-    const users = JSON.parse(localStorage.getItem('fairshare_users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.uid === user.uid);
+   async updateProfile(user: MockUser, profile: { displayName?: string | null; photoURL?: string | null }) {
+     const users = JSON.parse(localStorage.getItem('fairshare_users') || '[]');
+     const userIndex = users.findIndex((u: { uid: string }) => u.uid === user.uid);
 
-    if (userIndex !== -1) {
-      users[userIndex] = { ...users[userIndex], ...profile };
-      localStorage.setItem('fairshare_users', JSON.stringify(users));
-    }
+     if (userIndex !== -1) {
+       users[userIndex] = { ...users[userIndex], ...profile };
+       localStorage.setItem('fairshare_users', JSON.stringify(users));
+     }
 
-    this.currentUser = { ...user, ...profile };
-    localStorage.setItem('fairshare_currentUser', JSON.stringify(this.currentUser));
-    this.notifyListeners();
-  }
+     this.currentUser = { ...user, ...profile };
+     localStorage.setItem('fairshare_currentUser', JSON.stringify(this.currentUser));
+     this.notifyListeners();
+   }
 }
 
 // Mock Firestore
 class MockFirestore {
-  private getCollection(collectionName: string) {
-    return JSON.parse(localStorage.getItem(`fairshare_${collectionName}`) || '[]');
-  }
+    private getCollection(collectionName: string): Record<string, any>[] {
+      return JSON.parse(localStorage.getItem(`fairshare_${collectionName}`) || '[]');
+    }
 
-  private setCollection(collectionName: string, data: any[]) {
-    localStorage.setItem(`fairshare_${collectionName}`, JSON.stringify(data));
-  }
+    private setCollection(collectionName: string, data: Record<string, any>[]) {
+      localStorage.setItem(`fairshare_${collectionName}`, JSON.stringify(data));
+    }
 
-  collection(name: string) {
-    return {
-      add: async (data: any) => {
-        const items = this.getCollection(name);
-        const newItem = { id: generateId(), ...data, createdAt: new Date().toISOString() };
-        items.push(newItem);
-        this.setCollection(name, items);
-        return { id: newItem.id };
-      },
-      get: async () => {
-        const items = this.getCollection(name);
-        return {
-          docs: items.map((item: any) => ({
-            id: item.id,
-            data: () => item,
-          })),
-          forEach: (callback: any) => {
-            items.forEach((item: any) => callback({ id: item.id, data: () => item }));
-          },
-        };
-      },
-      where: (_field: string, _op: string, _value: any) => this.collection(name),
-      orderBy: (_field: string, _direction: string) => this.collection(name),
-    };
-  }
+   collection(name: string) {
+     return {
+       add: async (data: Record<string, any>) => {
+         const items = this.getCollection(name);
+         const newItem = { id: generateId(), ...data, createdAt: new Date().toISOString() };
+         items.push(newItem);
+         this.setCollection(name, items);
+         return { id: newItem.id };
+       },
+       get: async () => {
+         const items = this.getCollection(name);
+         return {
+           docs: items.map((item: Record<string, any>) => ({
+             id: item.id,
+             data: () => item,
+           })),
+           forEach: (callback: (arg0: { id: string; data: () => Record<string, any> }) => void) => {
+             items.forEach((item: Record<string, any>) => callback({ id: item.id, data: () => item }));
+           },
+         };
+       },
+        where: (_field: string, _op: string, _value: Record<string, any>) => this.collection(name),
+        orderBy: (_field: string, _direction: string) => this.collection(name),
+     };
+   }
 
-  doc(collectionName: string, id: string) {
-    const items = this.getCollection(collectionName);
-    const itemIndex = items.findIndex((item: any) => item.id === id);
+    doc(collectionName: string, id: string) {
+      const items = this.getCollection(collectionName);
+      const itemIndex = items.findIndex((item: Record<string, any>) => item.id === id);
 
-    return {
-      get: async () => {
-        const item = items.find((i: any) => i.id === id);
-        return {
-          exists: () => !!item,
-          data: () => item,
-          id,
-        };
-      },
-      set: async (data: any, options?: { merge: boolean }) => {
-        if (itemIndex !== -1) {
-          if (options?.merge) {
-            items[itemIndex] = { ...items[itemIndex], ...data };
-          } else {
-            items[itemIndex] = { id, ...data };
-          }
-        } else {
-          items.push({ id, ...data });
-        }
-        this.setCollection(collectionName, items);
-      },
-      update: async (data: any) => {
-        if (itemIndex !== -1) {
-          items[itemIndex] = { ...items[itemIndex], ...data };
-          this.setCollection(collectionName, items);
-        }
-      },
-      delete: async () => {
-        if (itemIndex !== -1) {
-          items.splice(itemIndex, 1);
-          this.setCollection(collectionName, items);
-        }
-      },
-    };
-  }
+      return {
+        get: async () => {
+          const item = items.find((i) => i.id === id);
+         return {
+           exists: () => !!item,
+           data: () => item,
+           id,
+         };
+       },
+       set: async (data: Record<string, any>, options?: { merge: boolean }) => {
+         if (itemIndex !== -1) {
+           if (options?.merge) {
+             items[itemIndex] = { ...items[itemIndex], ...data };
+           } else {
+             items[itemIndex] = { id, ...data };
+           }
+         } else {
+           items.push({ id, ...data });
+         }
+         this.setCollection(collectionName, items);
+       },
+       update: async (data: Record<string, any>) => {
+         if (itemIndex !== -1) {
+           items[itemIndex] = { ...items[itemIndex], ...data };
+           this.setCollection(collectionName, items);
+         }
+       },
+       delete: async () => {
+         if (itemIndex !== -1) {
+           items.splice(itemIndex, 1);
+           this.setCollection(collectionName, items);
+         }
+       },
+     };
+   }
 }
 
 // Mock Firebase App
@@ -238,9 +238,9 @@ function mockGetFirestore() {
   return mockDb;
 }
 
-function mockInitializeApp(_config: any) {
-  return mockApp;
-}
+function mockInitializeApp(_config: Record<string, any>) {
+   return mockApp;
+ }
 
 function mockOnAuthStateChanged(authInstance: MockAuth, callback: (user: MockUser | null) => void) {
   return authInstance.onAuthStateChanged(callback);
@@ -325,9 +325,9 @@ function mockServerTimestamp() {
 
 // --- Real Firebase initialization (when env vars present) ---
 
-let realApp: any = null;
-let realAuth: any = null;
-let realDb: any = null;
+  let realApp: ReturnType<typeof firebaseInitializeApp> | null = null;
+  let realAuth: ReturnType<typeof firebaseGetAuth> | null = null;
+  let realDb: ReturnType<typeof firebaseGetFirestore> | null = null;
 
 const useRealFirebase = Boolean(import.meta.env.VITE_FIREBASE_API_KEY);
 
@@ -381,7 +381,8 @@ const realServerTimestampFn = () => firebaseServerTimestamp();
 // Exported API (choose real or mock at runtime)
 export const app = useRealFirebase && realApp ? realApp : mockApp;
 export const auth = useRealFirebase && realAuth ? realAuth : mockAuth;
-export const db = useRealFirebase && realDb ? realDb : mockDb;
+// Cast to any to satisfy both mock and real Firestore expectations in services
+export const db = (useRealFirebase && realDb ? realDb : mockDb) as any;
 
 export const getAuth = useRealFirebase && realAuth ? () => realAuth : mockGetAuth;
 export const getFirestore = useRealFirebase && realDb ? () => realDb : mockGetFirestore;

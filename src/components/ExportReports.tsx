@@ -163,9 +163,9 @@ export function ExportReports() {
                 margin: { left: 14, right: 14 },
             });
 
-            // ── Total ──
-            const totalAmount = data.reduce((sum, exp) => sum + exp.amount, 0);
-            const finalY = (pdf as any).lastAutoTable?.finalY || 200;
+             // ── Total ──
+              const totalAmount = data.reduce((sum, exp) => sum + exp.amount, 0);
+              const finalY = (pdf as unknown as { lastAutoTable?: { finalY: number } })?.lastAutoTable?.finalY ?? 200;
 
             pdf.setFontSize(12);
             pdf.setTextColor(31, 58, 95);

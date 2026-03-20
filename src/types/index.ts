@@ -112,11 +112,27 @@ export interface Notification {
 }
 
 export interface FriendRequest {
-  id: string;
-  fromUserId: string;
-  fromUserName: string;
-  toUserId: string;
-  toUserName: string;
-  status: 'pending' | 'accepted' | 'rejected';
-  createdAt: Date;
-}
+   id: string;
+   fromUserId: string;
+   fromUserName: string;
+   toUserId: string;
+   toUserName: string;
+   status: 'pending' | 'accepted' | 'rejected';
+   createdAt: Date;
+ }
+
+export interface Friend {
+   id: string;
+   displayName: string;
+   email: string;
+   // Add other friend properties as needed
+ }
+
+export interface UserProfile {
+   uid: string;
+   userId?: string;
+   displayName: string;
+   email: string;
+   createdAt?: string;
+   // Add other user profile properties as needed
+ }

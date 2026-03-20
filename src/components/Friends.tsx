@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import type { Friend, FriendRequest, UserProfile } from '@/types';
 import { getFriends, getFriendRequests, searchUsers, sendFriendRequest, resolveFriendRequest } from '@/services/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,20 +12,14 @@ import { useNavigate } from 'react-router-dom';
 export function Friends() {
     const { currentUser } = useAuth();
     const navigate = useNavigate();
-    const [friends, setFriends] = useState<any[]>([]);
-    const [requests, setRequests] = useState<any[]>([]);
+    const [friends, setFriends] = useState<Friend[]>([]);
+    const [requests, setRequests] = useState<FriendRequest[]>([]);
+    const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [searching, setSearching] = useState(false);
 
-    useEffect(() => {
-        if (currentUser) {
-            loadData();
-        }
-    }, [currentUser]);
-
-    async function loadData() {
+    const loadData = useCallback(async () => {
         if (!currentUser) return;
         setLoading(true);
         try {
@@ -34,12 +29,18 @@ export function Friends() {
             ]);
             setFriends(f);
             setRequests(r);
-        } catch (err) {
-            console.error(err);
+        } catch {
+            console.error('Failed to load friend data');
         } finally {
             setLoading(false);
         }
-    }
+    }, [currentUser]);
+
+    useEffect(() => {
+        if (currentUser) {
+            loadData();
+        }
+    }, [currentUser, loadData]);
 
     async function handleSearch(e: React.FormEvent) {
         e.preventDefault();
@@ -47,15 +48,15 @@ export function Friends() {
         setSearching(true);
         try {
             const results = await searchUsers(searchQuery);
-            setSearchResults(results.filter(u => u.uid !== currentUser.uid && !friends.some(f => f.id === u.uid || f.uid === u.uid)));
-        } catch (err) {
+            setSearchResults(results.filter(u => u.uid !== currentUser.uid && !friends.some(f => f.id === u.uid)));
+        } catch {
             toast.error('Failed to search users');
         } finally {
             setSearching(false);
         }
     }
 
-    async function handleSendRequest(user: any) {
+    async function handleSendRequest(user: UserProfile) {
         if (!currentUser) return;
         try {
             await sendFriendRequest(
@@ -66,7 +67,7 @@ export function Friends() {
             );
             toast.success('Friend request sent!');
             setSearchResults(prev => prev.filter(u => u.uid !== user.uid));
-        } catch (err) {
+        } catch {
             toast.error('Failed to send request');
         }
     }
@@ -77,7 +78,7 @@ export function Friends() {
             await resolveFriendRequest(requestId, status, fromUserId, currentUser.uid);
             toast.success(`Request ${status}`);
             loadData();
-        } catch (err) {
+        } catch {
             toast.error('Failed to process request');
         }
     }
@@ -145,7 +146,7 @@ export function Friends() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            {requests.map(req => (
+                            {requests.map((req) => (
                                 <div key={req.id} className="flex items-center justify-between p-3 rounded-xl bg-orange-50 border border-orange-100">
                                     <div>
                                         <h4 className="font-semibold text-[#1F3A5F]">{req.fromUserName}</h4>
@@ -178,8 +179,8 @@ export function Friends() {
                             </div>
                         ) : (
                             <div className="grid gap-3 sm:grid-cols-2">
-                                {friends.map(friend => (
-                                    <div key={friend.uid || friend.id} className="flex items-center gap-3 p-3 rounded-xl border border-[#E3EAF4] bg-[#F7F9FB]">
+                                {friends.map((friend) => (
+                                    <div key={friend.id} className="flex items-center gap-3 p-3 rounded-xl border border-[#E3EAF4] bg-[#F7F9FB]">
                                         <div className="w-10 h-10 rounded-full bg-[#1F3A5F]/10 flex items-center justify-center">
                                             <span className="font-bold text-[#1F3A5F]">{friend.displayName?.charAt(0) || 'U'}</span>
                                         </div>

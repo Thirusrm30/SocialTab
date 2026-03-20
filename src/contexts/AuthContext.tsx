@@ -1,18 +1,23 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
-  auth,
+  auth as firebaseAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged,
+  onAuthStateChanged as firebaseOnAuthStateChanged,
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
-  db,
+  db as firebaseDb,
   doc,
   setDoc,
   serverTimestamp,
 } from '@/lib/firebase';
+
+// Cast to any to satisfy MockAuth/MockFirestore expectations in services
+const auth = firebaseAuth as any;
+const db = firebaseDb as any;
+const onAuthStateChanged = firebaseOnAuthStateChanged as any;
 import type { User } from '@/types';
 
 interface AuthContextType {
@@ -38,33 +43,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user: any) => {
-      if (user) {
-        setCurrentUser({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-        });
-      } else {
-        setCurrentUser(null);
-      }
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, []);
+    useEffect(() => {
+      const unsubscribe = onAuthStateChanged(auth as any, (user: { uid: string; email: string | null; displayName: string | null; photoURL: string | null } | null) => {
+        if (user) {
+          setCurrentUser({
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+          });
+        } else {
+          setCurrentUser(null);
+        }
+        setLoading(false);
+      });
+ 
+      return unsubscribe;
+    }, []);
 
   async function login(email: string, password: string) {
-    // Debug: Log what we're using (real Firebase or mock)
-    console.log('Using real Firebase:', Boolean(import.meta.env.VITE_FIREBASE_API_KEY));
-    console.log('Attempting login with email:', email);
-    
-    // Temporarily removed Gmail restriction for debugging
-    // if (!email.toLowerCase().endsWith('@gmail.com')) {
-    //   throw new Error('Only @gmail.com emails are allowed for manual login.');
-    // }
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
@@ -80,10 +77,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function register(email: string, password: string, displayName: string) {
-    // Temporarily removed Gmail restriction for debugging
-    // if (!email.toLowerCase().endsWith('@gmail.com')) {
-    //   throw new Error('Only @gmail.com emails are allowed for manual signup.');
-    // }
     const { user }: any = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(user, { displayName });
 
